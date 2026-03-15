@@ -74,7 +74,14 @@ function DocumentSelector({
                 <span className="doc-selector-item-abbr">{doc.shortLabel}</span>
                 <div className="doc-selector-item-text">
                   <span className="doc-selector-item-name">{doc.label}</span>
-                  <span className="doc-selector-item-desc">{doc.description}</span>
+                  <span className="doc-selector-item-desc">
+                    {doc.description}
+                    {doc.sectionCount > 0 && (
+                      <span className="doc-selector-section-badge">
+                        {doc.sectionCount} {doc.sectionCount === 1 ? 'section' : 'sections'}
+                      </span>
+                    )}
+                  </span>
                 </div>
                 {index === selectedIndex && (
                   <svg

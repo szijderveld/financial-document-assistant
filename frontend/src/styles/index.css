@@ -901,6 +901,17 @@ input:focus, textarea:focus, select:focus {
   color: var(--text-tertiary);
 }
 
+.doc-selector-section-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 8px;
+}
+
 .doc-selector-check {
   flex-shrink: 0;
   color: var(--accent);

@@ -50,6 +50,21 @@ function App() {
   // Construct PDF URL from document ID
   const pdfUrl = selectedDocument ? getDocumentPdfUrl(selectedDocument.id) : null;
 
+  // Derive suggestions from selected section or provide generic financial questions
+  const suggestions = docs.sections.length > 0
+    ? [
+        'What was the total revenue?',
+        'Compare year-over-year changes',
+        'What are the key trends in this table?',
+        'Calculate the percentage change',
+      ]
+    : [
+        'What was the total revenue?',
+        'Compare operating margins year over year',
+        'Summarize the key financial highlights',
+        'What are the largest expense categories?',
+      ];
+
   // Build conversations list from chat messages
   const conversations: ConversationItem[] = chat.messages.length > 0
     ? [{
@@ -131,7 +146,7 @@ function App() {
           <ChatPanel
             messages={chat.messages}
             isLoading={chat.isLoading}
-            suggestions={[]}
+            suggestions={suggestions}
             onSendMessage={handleSendMessage}
             onClose={() => setChatVisible(false)}
             onExpand={() => setChatExpanded(e => !e)}
