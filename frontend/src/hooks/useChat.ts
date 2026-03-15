@@ -36,6 +36,10 @@ export function useChat() {
           role: 'assistant',
           content: response.answer,
           timestamp: new Date(),
+          reasoning: response.reasoning,
+          extractedValues: response.extracted_values,
+          program: response.program,
+          formatType: response.format_type,
         };
         setMessages((prev) => [...prev, assistantMessage]);
         setConversationHistory((prev) => [
@@ -87,6 +91,10 @@ export function useChat() {
           role: 'assistant',
           content: response.answer,
           timestamp: new Date(),
+          reasoning: response.reasoning,
+          extractedValues: response.extracted_values,
+          program: response.program,
+          formatType: response.format_type,
         };
         setMessages((prev) => [...prev, assistantMessage]);
         setConversationHistory((prev) => [

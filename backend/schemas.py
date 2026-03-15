@@ -40,5 +40,9 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+    reasoning: str = ""
+    extracted_values: list[str] = []
+    program: list[str] = []
+    format_type: str = ""
     model: str
     calculation_memory: list[float] = []

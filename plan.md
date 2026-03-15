@@ -1103,7 +1103,7 @@ Update TypeScript types and hooks to work with the new PDF-based document model.
 ---
 
 ### Step 28: Update chatbot to include reasoning in responses 🧠 Plan → Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```

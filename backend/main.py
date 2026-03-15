@@ -141,7 +141,7 @@ async def chat(request: ChatRequest):
     )
 
     try:
-        answer, updated_memory = await get_answer(
+        result = await get_answer(
             document=document,
             conversation_history=request.conversation_history,
             question=request.question,
@@ -149,9 +149,13 @@ async def chat(request: ChatRequest):
             calculation_memory=request.calculation_memory,
         )
         return ChatResponse(
-            answer=answer,
+            answer=result["answer"],
+            reasoning=result["reasoning"],
+            extracted_values=result["extracted_values"],
+            program=result["program"],
+            format_type=result["format_type"],
             model=request.model,
-            calculation_memory=updated_memory,
+            calculation_memory=result["calculation_memory"],
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

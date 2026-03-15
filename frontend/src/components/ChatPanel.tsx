@@ -2,6 +2,65 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ChatMessage } from '../lib/types';
 import { formatAnswer } from '../lib/formatters';
 
+function ReasoningSection({ message }: { message: ChatMessage }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasReasoning = message.reasoning || (message.extractedValues && message.extractedValues.length > 0) || (message.program && message.program.length > 0);
+
+  if (!hasReasoning) return null;
+
+  return (
+    <div className="chat-reasoning-section">
+      <button
+        className="chat-reasoning-toggle"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`chat-reasoning-chevron${expanded ? ' expanded' : ''}`}
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        <span>Show reasoning</span>
+      </button>
+      {expanded && (
+        <div className="chat-reasoning-content">
+          {message.reasoning && (
+            <div className="chat-reasoning-block">
+              <div className="chat-reasoning-label">Reasoning</div>
+              <p className="chat-reasoning-text">{message.reasoning}</p>
+            </div>
+          )}
+          {message.extractedValues && message.extractedValues.length > 0 && (
+            <div className="chat-reasoning-block">
+              <div className="chat-reasoning-label">Extracted Values</div>
+              <div className="chat-reasoning-values">
+                {message.extractedValues.map((val, i) => (
+                  <span key={i} className="chat-reasoning-pill">{val}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {message.program && message.program.length > 0 && (
+            <div className="chat-reasoning-block">
+              <div className="chat-reasoning-label">Program</div>
+              <pre className="chat-reasoning-code">
+                {message.program.map((step, i) => `${i}: ${step}`).join('\n')}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ChatPanelProps {
   messages: ChatMessage[];
   isLoading: boolean;
@@ -220,34 +279,37 @@ function ChatPanel({
                       </button>
                     </div>
                   ) : msg.role === 'assistant' ? (
-                    <div className="chat-bubble chat-bubble-assistant chat-bubble-with-actions">
-                      <span className="chat-answer-highlight">
-                        {formatAnswer(msg.content).formatted}
-                      </span>
-                      <span className="chat-answer-context">
-                        {formatAnswer(msg.content).type === 'percentage'
-                          ? 'Calculated from document data'
-                          : formatAnswer(msg.content).type === 'number'
-                            ? 'Extracted from table'
-                            : 'Based on document analysis'}
-                      </span>
-                      <button
-                        className={`chat-copy-btn${copiedIndex === i ? ' copied' : ''}`}
-                        onClick={() => handleCopy(msg.content, i)}
-                        title="Copy answer"
-                      >
-                        {copiedIndex === i ? (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        ) : (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
+                    <>
+                      <div className="chat-bubble chat-bubble-assistant chat-bubble-with-actions">
+                        <span className="chat-answer-highlight">
+                          {formatAnswer(msg.content).formatted}
+                        </span>
+                        <span className="chat-answer-context">
+                          {formatAnswer(msg.content).type === 'percentage'
+                            ? 'Calculated from document data'
+                            : formatAnswer(msg.content).type === 'number'
+                              ? 'Extracted from table'
+                              : 'Based on document analysis'}
+                        </span>
+                        <button
+                          className={`chat-copy-btn${copiedIndex === i ? ' copied' : ''}`}
+                          onClick={() => handleCopy(msg.content, i)}
+                          title="Copy answer"
+                        >
+                          {copiedIndex === i ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                      <ReasoningSection message={msg} />
+                    </>
                   ) : (
                     <div className={`chat-bubble chat-bubble-${msg.role}`}>
                       {msg.content}

@@ -31,6 +31,10 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   isError?: boolean;
+  reasoning?: string;
+  extractedValues?: string[];
+  program?: string[];
+  formatType?: string;
 }
 
 export interface ConversationHistoryEntry {
@@ -49,6 +53,10 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   answer: string;
+  reasoning: string;
+  extracted_values: string[];
+  program: string[];
+  format_type: string;
   model: string;
   calculation_memory: number[];
 }

@@ -80,11 +80,11 @@ async def get_answer(
     question: str,
     model_name: str = "llama-3.1-8b",
     calculation_memory: list[float] | None = None,
-) -> tuple[str, list[float]]:
+) -> dict:
     """Generate a DSL program via LLM, execute it deterministically, return formatted answer.
 
     Returns:
-        (answer_string, updated_calculation_memory)
+        dict with keys: answer, reasoning, extracted_values, program, format_type, calculation_memory
     """
     model_id = MODEL_MAP.get(model_name)
     if not model_id:
@@ -155,4 +155,11 @@ async def get_answer(
     if isinstance(result.final_value, (int, float)):
         updated_memory.append(result.final_value)
 
-    return answer, updated_memory
+    return {
+        "answer": answer,
+        "reasoning": program_response.reasoning,
+        "extracted_values": program_response.extracted_values,
+        "program": program_response.program,
+        "format_type": program_response.format_type,
+        "calculation_memory": updated_memory,
+    }
