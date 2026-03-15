@@ -11,6 +11,20 @@ from collections.abc import Callable
 
 from pydantic import BaseModel, Field
 
+# Financial suffix multipliers (case-insensitive)
+_SUFFIXES: dict[str, float] = {
+    "T": 1e12, "B": 1e9, "M": 1e6, "K": 1e3,
+    "t": 1e12, "b": 1e9, "m": 1e6, "k": 1e3,
+}
+
+
+def _parse_numeric(val: str) -> float:
+    """Parse a numeric string, handling optional financial suffixes (B/M/K/T) and percent signs."""
+    val = val.strip().rstrip("%")
+    if val and val[-1] in _SUFFIXES:
+        return float(val[:-1]) * _SUFFIXES[val[-1]]
+    return float(val)
+
 
 class ExecutionResult(BaseModel):
     """Result of DSL execution."""
@@ -80,13 +94,15 @@ class DSLExecutor(BaseModel):
         # Constant: const_1, const_100, const_m1 (m = minus)
         if token.startswith("const_"):
             val = token[6:]
-            return -float(val[1:]) if val.startswith("m") else float(val)
+            if val.startswith("m"):
+                return -_parse_numeric(val[1:])
+            return _parse_numeric(val)
 
         # Numeric literal
-        cleaned = token.replace(",", "").replace(" ", "")
+        cleaned = token.replace(",", "").replace(" ", "").replace("$", "")
         if cleaned.startswith("(") and cleaned.endswith(")"):
-            return -float(cleaned[1:-1])
-        return float(cleaned)
+            return -_parse_numeric(cleaned[1:-1])
+        return _parse_numeric(cleaned)
 
     def format_result(
         self, value: float | str, format_type: str, format_precision: str
@@ -172,5 +188,25 @@ if __name__ == "__main__":
     r = executor.execute(["greater(34, 52)"])
     assert r.final_value == "no", f"Expected 'no', got {r.final_value}"
     print(f"Comparison: {r.final_value}")
+
+    # Financial suffix: const_88.7B (the bug that triggered this fix)
+    r = executor.execute(["const_88.7B"])
+    assert r.final_value == 88.7e9, f"Expected 88.7B, got {r.final_value}"
+    print(f"Suffix B: {r.final_value}")
+
+    # Financial suffix: const_2.5M
+    r = executor.execute(["const_2.5M"])
+    assert r.final_value == 2.5e6, f"Expected 2.5M, got {r.final_value}"
+    print(f"Suffix M: {r.final_value}")
+
+    # Negative with suffix: const_m3.2K
+    r = executor.execute(["const_m3.2K"])
+    assert r.final_value == -3200.0, f"Expected -3200, got {r.final_value}"
+    print(f"Negative suffix: {r.final_value}")
+
+    # Dollar sign in literal
+    r = executor.execute(["$1,234.56"])
+    assert r.final_value == 1234.56, f"Expected 1234.56, got {r.final_value}"
+    print(f"Dollar: {r.final_value}")
 
     print("\nAll tests passed!")

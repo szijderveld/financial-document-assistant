@@ -154,6 +154,7 @@ async def chat(request: ChatRequest):
         )
         return ChatResponse(
             answer=result["answer"],
+            reply=result.get("reply", result["answer"]),
             reasoning=result["reasoning"],
             extracted_values=result["extracted_values"],
             program=result["program"],

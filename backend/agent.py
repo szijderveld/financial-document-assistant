@@ -150,6 +150,15 @@ async def get_answer(
         program_response.format_precision,
     )
 
+    # Compose the natural language reply with the computed answer inserted
+    reply_template = getattr(program_response, "reply", "")
+    if reply_template and "{answer}" in reply_template:
+        reply = reply_template.replace("{answer}", answer)
+    elif reply_template:
+        reply = f"{reply_template} ({answer})"
+    else:
+        reply = answer
+
     # Update calculation memory with numeric results
     updated_memory = list(calculation_memory)
     if isinstance(result.final_value, (int, float)):
@@ -157,6 +166,7 @@ async def get_answer(
 
     return {
         "answer": answer,
+        "reply": reply,
         "reasoning": program_response.reasoning,
         "extracted_values": program_response.extracted_values,
         "program": program_response.program,

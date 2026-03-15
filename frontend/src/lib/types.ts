@@ -31,6 +31,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   isError?: boolean;
+  reply?: string;
   reasoning?: string;
   extractedValues?: string[];
   program?: string[];
@@ -53,6 +54,7 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   answer: string;
+  reply: string;
   reasoning: string;
   extracted_values: string[];
   program: string[];

@@ -40,6 +40,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+    reply: str = ""
     reasoning: str = ""
     extracted_values: list[str] = []
     program: list[str] = []

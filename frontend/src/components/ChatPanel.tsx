@@ -281,19 +281,30 @@ function ChatPanel({
                   ) : msg.role === 'assistant' ? (
                     <>
                       <div className="chat-bubble chat-bubble-assistant chat-bubble-with-actions">
-                        <span className="chat-answer-highlight">
-                          {formatAnswer(msg.content).formatted}
-                        </span>
-                        <span className="chat-answer-context">
-                          {formatAnswer(msg.content).type === 'percentage'
-                            ? 'Calculated from document data'
-                            : formatAnswer(msg.content).type === 'number'
-                              ? 'Extracted from table'
-                              : 'Based on document analysis'}
-                        </span>
+                        {msg.reply && msg.reply !== msg.content ? (
+                          <>
+                            <span className="chat-answer-reply">{msg.reply}</span>
+                            <span className="chat-answer-highlight">
+                              {formatAnswer(msg.content).formatted}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="chat-answer-highlight">
+                              {formatAnswer(msg.content).formatted}
+                            </span>
+                            <span className="chat-answer-context">
+                              {formatAnswer(msg.content).type === 'percentage'
+                                ? 'Calculated from document data'
+                                : formatAnswer(msg.content).type === 'number'
+                                  ? 'Extracted from table'
+                                  : 'Based on document analysis'}
+                            </span>
+                          </>
+                        )}
                         <button
                           className={`chat-copy-btn${copiedIndex === i ? ' copied' : ''}`}
-                          onClick={() => handleCopy(msg.content, i)}
+                          onClick={() => handleCopy(msg.reply || msg.content, i)}
                           title="Copy answer"
                         >
                           {copiedIndex === i ? (

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class ProgramResponse(BaseModel):
-    """LLM must produce this structure: reasoning + DSL program + format spec."""
+    """LLM must produce this structure: reasoning + DSL program + format spec + reply."""
 
     reasoning: str = Field(
         description="Step-by-step reasoning: 1) format classification with evidence, 2) values to extract, 3) calculation logic"
@@ -21,6 +21,7 @@ class ProgramResponse(BaseModel):
             "DSL program as list of steps. Operations: add(a,b), subtract(a,b), multiply(a,b), divide(a,b), "
             "greater(a,b), exp(a,b). Use #N to reference step N result (0-indexed). "
             "Constants: const_1, const_10, const_100, const_1000, const_m1. "
+            "IMPORTANT: Constants must be pure numbers — never include suffixes like B, M, K, or %. "
             "For percentages: use divide(part, whole) — do NOT multiply by 100."
         )
     )
@@ -29,6 +30,13 @@ class ProgramResponse(BaseModel):
     )
     format_precision: str = Field(
         description="Number of decimal places for formatting"
+    )
+    reply: str = Field(
+        description=(
+            "A natural language answer (1-2 sentences) that states the answer with brief rationale. "
+            "Use the PLACEHOLDER {answer} where the computed value should appear. "
+            "Example: 'The total revenue was {answer}, as reported in the 2023 income statement.'"
+        )
     )
 
 
@@ -94,7 +102,16 @@ For direct lookups:
 5. DO NOT reverse subtract operation order - subtract(a, b) means a - b
 6. DO NOT take absolute values - preserve negative results (declines, losses)
 7. DO NOT confuse "variation" or "change" direction - current - previous
+8. DO NOT include unit suffixes (B, M, K, T, %) in constants or values — use raw numbers only. If the table shows "88.7" in billions, use const_88.7 or 88.7, NOT const_88.7B
 </common_mistakes_to_avoid>
+
+<reply_guidelines>
+Generate a "reply" field: a 1-2 sentence natural language answer that includes both the answer and the rationale.
+- Use {answer} as a placeholder where the computed numeric value will be inserted
+- Reference where the data came from (which row/column in the table, which year, etc.)
+- For calculations, briefly explain what was computed
+- Keep it concise and professional
+</reply_guidelines>
 
 You MUST respond with a valid JSON object containing these exact fields:
 - "reasoning": string with step-by-step reasoning
@@ -102,6 +119,7 @@ You MUST respond with a valid JSON object containing these exact fields:
 - "program": list of strings with DSL steps
 - "format_type": one of "percentage", "ratio", "integer", "decimal", "yes_no"
 - "format_precision": string number of decimal places
+- "reply": string with a natural language answer using {answer} as placeholder for the computed value
 
 Generate a DSL program and specify the appropriate format_type and format_precision for the final answer."""
 
@@ -114,6 +132,7 @@ Reasoning: Contains "percentage" → format_type: "percentage". Need to divide d
 Program: ["divide(25587, 181001)"]
 Format Type: "percentage"
 Format Precision: "1"
+Reply: "The percentage change is {answer}, calculated by dividing the difference of 25,587 by the base value of 181,001."
 
 EXAMPLE: Direct Lookup
 Question: "what is the net cash from operating activities in 2009?"
@@ -122,6 +141,7 @@ Reasoning: Direct table lookup with integer value → format_type: "integer"
 Program: ["206588"]
 Format Type: "integer"
 Format Precision: "0"
+Reply: "The net cash from operating activities in 2009 was {answer}, as reported in the cash flow statement."
 
 EXAMPLE: Ratio
 Question: "what is the ratio of provision for credit losses in 2014 to 2013?"
@@ -131,15 +151,17 @@ Reasoning: Contains "ratio" without percentage context → format_type: "ratio",
 Program: ["divide(273, 643)"]
 Format Type: "ratio"
 Format Precision: "2"
+Reply: "The ratio of provision for credit losses in 2014 to 2013 is {answer}, based on values of 273 (2014) and 643 (2013)."
 
 EXAMPLE: Revenue with Decimals
 Question: "what were revenues in 2008?"
-Context: Table shows 9362.2
+Context: Table shows 9362.2 (in millions)
 
-Reasoning: Direct table lookup with decimal → format_type: "decimal", preserve 1 decimal place from table
+Reasoning: Direct table lookup with decimal → format_type: "decimal", preserve 1 decimal place from table. IMPORTANT: Use the raw number from the table (9362.2), do NOT append unit suffixes like M or B.
 Program: ["9362.2"]
 Format Type: "decimal"
 Format Precision: "1"
+Reply: "Revenues in 2008 were {answer} million, as shown in the income statement."
 
 EXAMPLE: Proportion (Context-Dependent)
 Question: "what proportion does this represent?"
@@ -149,6 +171,7 @@ Reasoning: "proportion" in financial context → format_type: "percentage", 1 de
 Program: ["divide(5923147, 8453601)"]
 Format Type: "percentage"
 Format Precision: "1"
+Reply: "This represents a proportion of {answer} of the total (5,923,147 out of 8,453,601)."
 
 EXAMPLE: Multi-turn Reference
 Question: "what percentage does this represent?"
@@ -158,6 +181,7 @@ Reasoning: Follow-up percentage question using previous results
 Program: ["divide(#2, #1)"]
 Format Type: "percentage"
 Format Precision: "1"
+Reply: "This represents {answer} of the base value, calculated from the previously extracted figures."
 
 EXAMPLE: Comparison Question
 Question: "was the average daily var greater than the equity prices in 2016?"
@@ -167,6 +191,7 @@ Reasoning: Comparison question → format_type: "yes_no", use greater operation
 Program: ["greater(34, 52)"]
 Format Type: "yes_no"
 Format Precision: "0"
+Reply: "No, the average daily VaR (34) was not greater than equity prices (52) in 2016. The answer is {answer}."
 
 EXAMPLE: Negative Change/Decline
 Question: "what was, then, the variation over the year?"
@@ -176,6 +201,7 @@ Reasoning: Variation = current - previous = 72 - 78 = -6. Preserve negative sign
 Program: ["subtract(72, 78)"]
 Format Type: "integer"
 Format Precision: "0"
+Reply: "The variation over the year was {answer}, reflecting a decline from 78 in 2016 to 72 in 2017."
 
 EXAMPLE: Negative Percentage
 Question: "what is this variation as a percent of the 2016 expense?"
@@ -185,6 +211,7 @@ Reasoning: Percentage change = variation / base = -6 / 78 = -0.077 → -7.7%. Ke
 Program: ["divide(-6, 78)"]
 Format Type: "percentage"
 Format Precision: "1"
+Reply: "The variation represents {answer} of the 2016 expense, calculated as -6 divided by 78."
 
 EXAMPLE: Compound Interest
 Question: "what is the value after 10 years with 2.75% annual rate?"
@@ -194,6 +221,7 @@ Reasoning: Compound interest calculation → format_type: "decimal", 1 decimal p
 Program: ["add(const_1, 0.0275)", "exp(#0, const_10)", "multiply(400, #1)"]
 Format Type: "decimal"
 Format Precision: "1"
+Reply: "After 10 years at a 2.75% annual rate, the value would be {answer}, compounded from an initial amount of 400."
 """
 
 # =============================================================================

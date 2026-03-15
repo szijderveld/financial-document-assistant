@@ -1647,6 +1647,14 @@ input:focus, textarea:focus, select:focus {
   border-left: 3px solid var(--accent);
 }
 
+.chat-answer-reply {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
 .chat-answer-context {
   display: block;
   font-size: 11px;
