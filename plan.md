@@ -521,7 +521,7 @@ Build the API client and useChat hook.
 ```
 
 ### Step 15: Wire everything together in App.tsx 🧠 Plan → Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
@@ -562,7 +562,7 @@ Integrate all components and hooks in App.tsx.
 ## Phase 6: Upload & Formatting
 
 ### Step 16: Build the Upload Modal ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```

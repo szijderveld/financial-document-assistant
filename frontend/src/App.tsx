@@ -3,9 +3,10 @@ import Header from './components/Header';
 import HistorySidebar from './components/HistorySidebar';
 import DocumentViewer from './components/DocumentViewer';
 import ChatPanel from './components/ChatPanel';
+import UploadModal from './components/UploadModal';
 import { useDocuments } from './hooks/useDocuments';
 import { useChat } from './hooks/useChat';
-import type { ConversationItem } from './lib/types';
+import type { ConversationItem, FinancialDocument } from './lib/types';
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -35,6 +36,12 @@ function App() {
   const handleNewChat = () => {
     chat.clearChat();
     setActiveConversation(-1);
+  };
+
+  const handleUploadDocument = (doc: FinancialDocument) => {
+    docs.addDocument(doc);
+    chat.clearChat();
+    setUploadOpen(false);
   };
 
   const selectedDocument = docs.selectedDocument;
@@ -100,6 +107,11 @@ function App() {
           />
         </aside>
       </main>
+      <UploadModal
+        isOpen={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUpload={handleUploadDocument}
+      />
     </>
   );
 }

@@ -1473,3 +1473,243 @@ input:focus, textarea:focus, select:focus {
   margin-top: var(--space-sm);
   line-height: var(--leading-normal);
 }
+
+/* ============================================
+   Upload Modal
+   ============================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+.modal-container {
+  background: var(--bg-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.modal-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-close-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Tabs */
+.modal-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 var(--space-xl);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.modal-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-tertiary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.modal-tab:hover {
+  color: var(--text-secondary);
+}
+
+.modal-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Body */
+.modal-body {
+  padding: var(--space-xl);
+  overflow-y: auto;
+}
+
+.modal-field {
+  margin-bottom: var(--space-lg);
+}
+
+.modal-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.modal-label-required {
+  color: var(--error);
+  margin-left: 2px;
+}
+
+.modal-textarea {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: var(--leading-relaxed);
+  resize: vertical;
+  transition: border-color var(--transition-fast);
+}
+
+.modal-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.modal-textarea:focus {
+  border-color: var(--accent);
+}
+
+.modal-textarea-table {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.modal-hint {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.modal-error {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--error-bg);
+  color: var(--error);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.modal-submit-btn {
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--accent);
+  color: var(--text-inverse);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.modal-submit-btn:hover:not(:disabled) {
+  background: var(--accent-light);
+}
+
+.modal-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dropzone */
+.modal-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-2xl) var(--space-xl);
+  border: 2px dashed var(--border-medium);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  margin-bottom: var(--space-lg);
+}
+
+.modal-dropzone:hover,
+.modal-dropzone.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.modal-dropzone.has-file {
+  border-style: solid;
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+
+.modal-dropzone-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--text-tertiary);
+}
+
+.modal-dropzone-text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.modal-dropzone-hint {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.modal-dropzone-filled {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--success);
+}
+
+.modal-dropzone-clear {
+  margin-left: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  transition: color var(--transition-fast);
+}
+
+.modal-dropzone-clear:hover {
+  color: var(--text-secondary);
+}

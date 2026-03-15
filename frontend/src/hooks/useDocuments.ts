@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import type { ConvFinQARecord, ExampleRecords, SampleDocument } from '../lib/types';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import type { ConvFinQARecord, ExampleRecords, FinancialDocument, SampleDocument } from '../lib/types';
 
 const DOCUMENT_META: { label: string; shortLabel: string; description: string }[] = [
   { label: 'JKHY Corp — Cash Flow Analysis', shortLabel: 'JK', description: 'Fiscal Year 2007–2009' },
@@ -58,6 +58,24 @@ export function useDocuments() {
     }
   };
 
+  const addDocument = useCallback((doc: FinancialDocument) => {
+    const customIndex = documents.filter((d) => d.id.startsWith('custom-')).length + 1;
+    const newDoc: SampleDocument = {
+      id: `custom-${Date.now()}`,
+      label: `Custom Document ${customIndex}`,
+      shortLabel: `C${customIndex}`,
+      description: 'User-uploaded document',
+      record: {
+        id: `custom-${Date.now()}`,
+        doc,
+        dialogue: { conv_questions: [], conv_answers: [], turn_program: [], executed_answers: [], qa_split: [] },
+        features: { num_dialogue_turns: 0, has_type2_question: false, has_duplicate_columns: false, has_non_numeric_values: false },
+      },
+    };
+    setDocuments((prev) => [...prev, newDoc]);
+    setSelectedIndex(documents.length); // select the newly added doc
+  }, [documents.length]);
+
   return {
     documents,
     selectedIndex,
@@ -65,5 +83,6 @@ export function useDocuments() {
     suggestions,
     isLoading,
     selectDocument,
+    addDocument,
   };
 }
