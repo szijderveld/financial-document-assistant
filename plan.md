@@ -377,7 +377,7 @@ Build the HistorySidebar component.
 ```
 
 ### Step 10: Build the FinancialTable and DocumentSelector components ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
