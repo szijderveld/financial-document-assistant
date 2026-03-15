@@ -921,7 +921,7 @@ Build a backend service that extracts structured data (narrative text + financia
 ---
 
 ### Step 24: Add PDF upload and extraction API endpoints ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```

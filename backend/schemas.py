@@ -30,7 +30,8 @@ class ConversationEntry(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    document: Document
+    document_id: str
+    section_index: int = 0
     conversation_history: list[ConversationEntry] = []
     question: str
     model: str = "llama-3.1-8b"
