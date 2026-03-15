@@ -186,7 +186,7 @@ Create the table formatting utility, ported from reference/src/agents/base.py.
 ```
 
 ### Step 4: Build the LangChain agent with Cloudflare Workers AI 🧠 Plan → Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
@@ -227,7 +227,7 @@ Build the LangChain agent that calls Cloudflare Workers AI. This is the core int
 ```
 
 ### Step 5: Wire the /api/chat endpoint ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
