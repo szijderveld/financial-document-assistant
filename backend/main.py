@@ -37,7 +37,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="FinDoc AI API", version="1.0.0", lifespan=lifespan)
 
 # CORS — allow frontend origins
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+_default_origins = [
+    "http://localhost:5173",
+    "https://findoc-ai.pages.dev",
+    "https://findoc.samzijderveld.dev",
+]
+_env_origins = os.getenv("ALLOWED_ORIGINS", "")
+allowed_origins = [o for o in _env_origins.split(",") if o] or _default_origins
+# Always include the production frontends
+for origin in _default_origins:
+    if origin not in allowed_origins:
+        allowed_origins.append(origin)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
