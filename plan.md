@@ -493,7 +493,7 @@ Build the useDocuments hook to manage document state.
 ```
 
 ### Step 14: Build the API client and useChat hook ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
