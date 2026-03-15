@@ -404,7 +404,7 @@ Build the FinancialTable and DocumentSelector components.
 ```
 
 ### Step 11: Build the DocumentViewer component ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
