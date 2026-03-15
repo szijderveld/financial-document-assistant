@@ -296,7 +296,7 @@ Create the TypeScript type definitions for the frontend.
 ```
 
 ### Step 7: Set up global styles inspired by the prototype ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
