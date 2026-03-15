@@ -355,7 +355,7 @@ Use the prototype as a general style guide — same color palette and layout, bu
 ```
 
 ### Step 9: Build the HistorySidebar component ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
