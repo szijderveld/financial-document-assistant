@@ -21,6 +21,7 @@ Execute the next unchecked step in the build plan.
    - For frontend steps: verify TypeScript compiles — `cd frontend && npx tsc --noEmit`
    - For backend steps: verify Python imports — `cd backend && python -c "import main"` or similar
    - Reference `prototype-v2.html` for general design inspiration (similar style, NOT pixel-perfect)
+   - Check that step is done in 'plan.md'
 
 4. **Mark complete:**
    - In `plan.md`, change `- [ ] **DONE**` to `- [x] **DONE**` for this step
