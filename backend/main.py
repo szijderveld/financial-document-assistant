@@ -112,13 +112,7 @@ async def upload_document(file: UploadFile):
         logger.exception("Failed to extract uploaded PDF")
         raise HTTPException(status_code=500, detail="Failed to process PDF")
 
-    return {
-        "id": doc_id,
-        "filename": file.filename,
-        "section_count": len(extracted.sections),
-        "page_count": extracted.page_count,
-        "status": extracted.extraction_status,
-    }
+    return extracted
 
 
 # --- Chat endpoint ---

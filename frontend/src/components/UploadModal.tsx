@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import type { ExtractedDocument, DocumentInfo } from '../lib/types';
+import { uploadDocument } from '../lib/api';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -66,7 +67,6 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete }: Uploa
     setUploadError('');
 
     try {
-      const { uploadDocument } = await import('../lib/api');
       const doc = await uploadDocument(selectedFile);
       setExtractedDoc(doc);
       setUploadState('success');
