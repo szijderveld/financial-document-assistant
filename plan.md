@@ -157,7 +157,7 @@ Build the FastAPI backend skeleton with CORS and health check.
 ## Phase 2: Backend Agent (Python + LangChain)
 
 ### Step 3: Build the table formatter utility ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
