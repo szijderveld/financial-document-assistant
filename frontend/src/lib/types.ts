@@ -47,11 +47,13 @@ export interface ChatRequest {
   conversation_history: ConversationHistoryEntry[];
   question: string;
   model: string;
+  calculation_memory: number[];
 }
 
 export interface ChatResponse {
   answer: string;
   model: string;
+  calculation_memory: number[];
 }
 
 export interface SampleDocument {

@@ -5,6 +5,7 @@ import { sendChatMessage } from '../lib/api';
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationHistory, setConversationHistory] = useState<ConversationHistoryEntry[]>([]);
+  const [calculationMemory, setCalculationMemory] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastFailedRef = useRef<{ question: string; document: FinancialDocument; model: string } | null>(null);
@@ -27,6 +28,7 @@ export function useChat() {
           conversation_history: conversationHistory,
           question,
           model,
+          calculation_memory: calculationMemory,
         });
 
         const assistantMessage: ChatMessage = {
@@ -39,6 +41,7 @@ export function useChat() {
           ...prev,
           { question, answer: response.answer },
         ]);
+        setCalculationMemory(response.calculation_memory);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred';
         const errorMessage: ChatMessage = {
@@ -54,7 +57,7 @@ export function useChat() {
         setIsLoading(false);
       }
     },
-    [conversationHistory],
+    [conversationHistory, calculationMemory],
   );
 
   const retryLastMessage = useCallback(() => {
@@ -76,6 +79,7 @@ export function useChat() {
       conversation_history: conversationHistory,
       question,
       model,
+      calculation_memory: calculationMemory,
     })
       .then((response) => {
         const assistantMessage: ChatMessage = {
@@ -88,6 +92,7 @@ export function useChat() {
           ...prev,
           { question, answer: response.answer },
         ]);
+        setCalculationMemory(response.calculation_memory);
       })
       .catch((err) => {
         const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -104,11 +109,12 @@ export function useChat() {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [conversationHistory]);
+  }, [conversationHistory, calculationMemory]);
 
   const clearChat = useCallback(() => {
     setMessages([]);
     setConversationHistory([]);
+    setCalculationMemory([]);
     setError(null);
     lastFailedRef.current = null;
   }, []);
