@@ -17,8 +17,10 @@ class ChatRequest(BaseModel):
     conversation_history: list[ConversationEntry] = []
     question: str
     model: str = "llama-3.1-8b"
+    calculation_memory: list[float] = []
 
 
 class ChatResponse(BaseModel):
     answer: str
     model: str
+    calculation_memory: list[float] = []
