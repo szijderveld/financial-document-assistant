@@ -735,7 +735,7 @@ Prepare both frontend and backend for production deployment.
 ```
 
 ### Step 21: Deploy frontend to Cloudflare Pages and backend to Render ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
@@ -768,6 +768,495 @@ NOTE: If wrangler/render login requires interactive auth, skip the actual deploy
 
 ---
 
+## Phase 9: PDF Document Support
+
+This phase converts the application from JSON-based structured documents to real PDF financial documents. The core challenge is building a reliable extraction pipeline that converts PDFs into the structured JSON the existing DSL chatbot expects — keeping the proven DSL execution chain intact while upgrading the input and display layers.
+
+**Key design decision:** PDFs are stored/served as files and rendered natively in the viewer. A backend extraction job converts each PDF into structured JSON (text + tables) that feeds the existing chatbot pipeline. This keeps the DSL approach working exactly as before.
+
+### Mode Guide (Phase 9)
+
+| Step | Mode | Why |
+|------|------|-----|
+| 22 | ⚡ Execute | File moves and config |
+| 23 | 🧠 Plan → Execute | Core extraction logic — PDF parsing, table detection, LLM-assisted cleanup |
+| 24 | ⚡ Execute | New endpoint, schema updates |
+| 25 | ⚡ Execute | Swap viewer component |
+| 26 | ⚡ Execute | Rework upload to accept PDFs |
+| 27 | ⚡ Execute | Schema + hook changes |
+| 28 | 🧠 Plan → Execute | Prompt engineering, response structure changes |
+| 29 | ⚡ Execute | Wire everything, test |
+| 30 | ⚡ Execute | Testing and bug fixes |
+
+---
+
+### Step 22: Organize PDF example documents and update data structure ⚡ Execute
+- [ ] **DONE**
+
+**Prompt:**
+```
+Reorganize the example document files for PDF-based document support.
+
+1. Create directory `backend/data/documents/`
+
+2. Move and rename the two PDF files:
+   - `2026-01-27_UPS_Releases_4Q_2025_Earnings_and_Provides_2026_2154.pdf`
+     → `backend/data/documents/ups_q4_2025_earnings.pdf`
+   - `0001628280-26-008432.pdf`
+     → `backend/data/documents/ups_10k_2025.pdf`
+
+3. Create `backend/data/documents/manifest.json` — a registry of pre-loaded example documents:
+   ```json
+   {
+     "documents": [
+       {
+         "id": "ups-q4-2025-earnings",
+         "filename": "ups_q4_2025_earnings.pdf",
+         "label": "UPS — Q4 2025 Earnings Release",
+         "shortLabel": "UPS-ER",
+         "description": "Fourth quarter 2025 results and 2026 guidance",
+         "company": "United Parcel Service",
+         "pages": 16
+       },
+       {
+         "id": "ups-10k-2025",
+         "filename": "ups_10k_2025.pdf",
+         "label": "UPS — 2025 Annual Report (10-K)",
+         "shortLabel": "UPS-10K",
+         "description": "SEC annual filing for fiscal year ended December 31, 2025",
+         "company": "United Parcel Service",
+         "pages": 167
+       }
+     ]
+   }
+   ```
+
+4. Remove the old `frontend/public/data/example_records.json` file (no longer needed — the app will serve PDFs and extracted data from the backend instead of bundling JSON in the frontend).
+
+5. Update `.gitignore` to NOT ignore files in `backend/data/documents/` (PDFs should be committed).
+
+6. Commit: "chore: organize PDF example documents and create manifest"
+```
+
+---
+
+### Step 23: Build the PDF extraction pipeline 🧠 Plan → Execute
+- [ ] **DONE**
+
+**Prompt:**
+```
+Build a backend service that extracts structured data (narrative text + financial tables) from uploaded PDF documents. This is the most critical step — extraction quality directly determines chatbot accuracy.
+
+1. Add PDF extraction dependencies to `backend/requirements.txt`:
+   - `pdfplumber` — for table detection and extraction from native PDFs
+   - `pymupdf` (fitz) — for fast text extraction and page-level access
+
+2. Create `backend/pdf_extractor.py` with a class `PDFExtractor`:
+
+   a. `extract(pdf_path: str) -> ExtractedDocument`:
+      - Open PDF with pdfplumber
+      - For each page, detect tables and extract surrounding narrative text
+      - Return structured output with sections (each section = narrative + table pair)
+
+   b. Table extraction strategy:
+      - Use pdfplumber's `page.extract_tables()` for structured table detection
+      - Clean extracted tables: strip whitespace, handle merged cells, parse numbers
+      - Convert to the app's dict-of-dicts format: `{column_header: {row_label: value}}`
+      - Handle common financial table patterns:
+        - Multi-level headers (e.g., "Three Months Ended / December 31,")
+        - Dollar sign prefixes and parenthetical negatives: "(6)" → -6
+        - Percentage values, em dashes (—) as zero/null
+        - Footnote markers (1), (2) in labels
+        - Comma-separated numbers: "24,479" → 24479
+
+   c. Text extraction strategy:
+      - Extract text outside of detected table regions
+      - Preserve paragraph structure
+      - Split into pre_text (before each table) and post_text (after each table)
+      - Handle headers, bullet points, and section titles
+
+   d. Multi-section output: A single PDF may contain multiple tables with surrounding
+      narrative. Return a list of sections, each with its own pre_text, table, and post_text.
+
+3. Create the Pydantic models in `backend/schemas.py`:
+   ```python
+   class ExtractedSection(BaseModel):
+       pre_text: str
+       post_text: str
+       table: dict[str, dict[str, float | str | int]]
+       table_title: str = ""
+       page_numbers: list[int] = []
+
+   class ExtractedDocument(BaseModel):
+       id: str
+       filename: str
+       sections: list[ExtractedSection]
+       full_text: str  # Complete extracted text for context
+       page_count: int
+       extraction_status: str = "completed"
+   ```
+
+4. Test the extractor against both example PDFs:
+   ```bash
+   cd backend && python -c "
+   from pdf_extractor import PDFExtractor
+   e = PDFExtractor()
+   result = e.extract('data/documents/ups_q4_2025_earnings.pdf')
+   print(f'Sections: {len(result.sections)}')
+   for i, s in enumerate(result.sections):
+       cols = list(s.table.keys())[:3]
+       print(f'  Section {i}: {s.table_title or \"untitled\"} — {len(s.table)} columns ({cols}...)')
+   "
+   ```
+
+5. Handle edge cases:
+   - Pages with no tables (pure narrative) → still capture text for context
+   - Very large tables spanning multiple pages → merge them
+   - Tables with no clear headers → use column indices as headers
+   - Scanned/image PDFs → raise a clear error (OCR not supported in v1)
+
+6. Commit: "feat: build PDF extraction pipeline with pdfplumber"
+```
+
+---
+
+### Step 24: Add PDF upload and extraction API endpoints ⚡ Execute
+- [ ] **DONE**
+
+**Prompt:**
+```
+Add backend API endpoints for PDF document management: upload, extraction, and serving.
+
+1. Create `backend/document_store.py`:
+   - In-memory store for extracted documents (dict keyed by document ID)
+   - On startup: pre-extract all documents from `backend/data/documents/manifest.json`
+   - Methods: `get_document(id)`, `add_document(id, extracted)`, `list_documents()`
+   - Store both the extracted JSON and the PDF file path
+
+2. Add new endpoints to `backend/main.py`:
+
+   a. `POST /api/documents/upload` — accepts PDF file upload
+      - Save to a temp directory (or `backend/data/uploads/`)
+      - Run extraction via PDFExtractor
+      - Store result in document_store
+      - Return the ExtractedDocument metadata (id, sections count, status)
+
+   b. `GET /api/documents` — list all available documents (examples + uploaded)
+      - Return manifest-style list with id, label, description, section_count
+
+   c. `GET /api/documents/{id}` — get extracted data for a document
+      - Return full ExtractedDocument with all sections
+
+   d. `GET /api/documents/{id}/pdf` — serve the raw PDF file
+      - Return FileResponse with correct content-type for PDF rendering in frontend
+
+   e. `GET /api/documents/{id}/sections/{section_index}` — get a specific section
+      - Return a single ExtractedSection (used by chatbot)
+
+3. Update `ChatRequest` schema to work with sections instead of raw documents:
+   ```python
+   class ChatRequest(BaseModel):
+       document_id: str
+       section_index: int = 0  # Which table/section to ask about
+       conversation_history: list[ConversationEntry] = []
+       question: str
+       model: str = "llama-3.1-8b"
+       calculation_memory: list[float] = []
+   ```
+
+4. Update the `/api/chat` endpoint to:
+   - Look up the document and section from document_store
+   - Build a Document object from the ExtractedSection
+   - Pass to the existing `get_answer()` function (no changes to DSL pipeline)
+
+5. Commit: "feat: add PDF upload and document API endpoints"
+```
+
+---
+
+### Step 25: Replace DocumentViewer with PDF renderer ⚡ Execute
+- [ ] **DONE**
+
+**Prompt:**
+```
+Replace the current HTML-based document viewer with a native PDF renderer.
+
+1. Install react-pdf: `cd frontend && npm install react-pdf`
+
+2. Rewrite `frontend/src/components/DocumentViewer.tsx`:
+   - Use react-pdf's `<Document>` and `<Page>` components to render the actual PDF
+   - Fetch PDF from `GET /api/documents/{id}/pdf`
+   - Keep existing toolbar: sidebar toggle, document selector, zoom controls, chat toggle
+   - Add page navigation: previous/next buttons, "Page X of Y" indicator
+   - Zoom controls work with react-pdf's `scale` prop
+   - Scrollable container for the PDF pages
+   - Loading state while PDF loads
+   - Error state if PDF fails to load
+
+3. Add a "section indicator" overlay or sidebar panel:
+   - Show which sections (tables) were extracted from this PDF
+   - Clicking a section navigates to that page in the PDF
+   - Highlight the active section (the one the chatbot is currently working with)
+   - This lets the user see exactly which table they're asking questions about
+
+4. Keep the FinancialTable component — it can still be used in a collapsible
+   "Extracted Data" panel below the PDF viewer to show the structured data the
+   chatbot actually sees (transparency/debugging).
+
+5. Update CSS for the new PDF viewer layout.
+
+6. Commit: "feat: replace DocumentViewer with PDF renderer using react-pdf"
+```
+
+---
+
+### Step 26: Update UploadModal for PDF upload ⚡ Execute
+- [ ] **DONE**
+
+**Prompt:**
+```
+Rework the UploadModal to accept PDF files instead of JSON/paste input.
+
+1. Rewrite `frontend/src/components/UploadModal.tsx`:
+   - Remove the "Paste Data" and "JSON Upload" tabs
+   - Single upload interface:
+     - Drag-and-drop zone accepting .pdf files only
+     - File size limit display (e.g., "Max 50MB")
+     - File name and size preview after selection
+   - On upload:
+     - POST the PDF to `/api/documents/upload` as multipart/form-data
+     - Show progress indicator while uploading and extracting
+     - Show extraction results: number of sections found, table previews
+     - If extraction finds 0 tables: show warning "No financial tables detected"
+     - "Add Document" button to confirm and add to document list
+
+2. Update `frontend/src/lib/api.ts`:
+   - Add `uploadDocument(file: File): Promise<ExtractedDocument>` function
+   - Add `fetchDocuments(): Promise<DocumentListItem[]>` function
+   - Add `fetchDocument(id: string): Promise<ExtractedDocument>` function
+   - Add `getDocumentPdfUrl(id: string): string` helper
+
+3. Commit: "feat: update UploadModal for PDF file upload"
+```
+
+---
+
+### Step 27: Update types, hooks, and document state management ⚡ Execute
+- [ ] **DONE**
+
+**Prompt:**
+```
+Update TypeScript types and hooks to work with the new PDF-based document model.
+
+1. Update `frontend/src/lib/types.ts`:
+   - Remove `ConvFinQARecord`, `ExampleRecords`, `Dialogue`, `DocumentFeatures` interfaces
+     (these were specific to the old JSON example format)
+   - Add new interfaces:
+     ```typescript
+     export interface ExtractedSection {
+       pre_text: string;
+       post_text: string;
+       table: Record<string, Record<string, string | number>>;
+       table_title: string;
+       page_numbers: number[];
+     }
+
+     export interface DocumentInfo {
+       id: string;
+       filename: string;
+       label: string;
+       shortLabel: string;
+       description: string;
+       company: string;
+       section_count: number;
+       page_count: number;
+     }
+
+     export interface ExtractedDocument {
+       id: string;
+       filename: string;
+       sections: ExtractedSection[];
+       full_text: string;
+       page_count: number;
+       extraction_status: string;
+     }
+     ```
+   - Update `SampleDocument` to reference `DocumentInfo` instead of `ConvFinQARecord`
+   - Update `ChatRequest` to use `document_id` and `section_index` instead of raw document
+
+2. Rewrite `frontend/src/hooks/useDocuments.ts`:
+   - On mount: fetch document list from `GET /api/documents` instead of loading static JSON
+   - State: documents (DocumentInfo[]), selectedIndex, selectedSection (index),
+     extractedData (ExtractedDocument | null), isLoading
+   - When a document is selected: fetch its extracted data from `GET /api/documents/{id}`
+   - `selectSection(index)`: change which section/table the chatbot focuses on
+   - Remove the old `addDocument` that accepted raw FinancialDocument
+   - Add `addUploadedDocument(doc: DocumentInfo)`: append to list after PDF upload
+
+3. Update `frontend/src/hooks/useChat.ts`:
+   - Change `sendMessage` to accept `documentId` and `sectionIndex` instead of raw document
+   - Update the ChatRequest construction accordingly
+
+4. Commit: "feat: update types and hooks for PDF document model"
+```
+
+---
+
+### Step 28: Update chatbot to include reasoning in responses 🧠 Plan → Execute
+- [ ] **DONE**
+
+**Prompt:**
+```
+Update the chatbot to return the LLM's reasoning alongside the computed answer, giving users
+transparency into how the answer was derived.
+
+1. Update `backend/schemas.py` — expand ChatResponse:
+   ```python
+   class ChatResponse(BaseModel):
+       answer: str
+       reasoning: str  # The LLM's step-by-step reasoning
+       extracted_values: list[str]  # Values the LLM identified in the document
+       program: list[str]  # The DSL program that was executed
+       format_type: str  # How the answer was formatted
+       model: str
+       calculation_memory: list[float] = []
+   ```
+
+2. Update `backend/agent.py` — `get_answer()`:
+   - Instead of returning just `(answer, memory)`, return the full response object
+     including `program_response.reasoning`, `program_response.extracted_values`,
+     and `program_response.program`
+   - Update the return type and the `/api/chat` endpoint to pass these through
+
+3. Update `frontend/src/lib/types.ts` — expand ChatResponse:
+   ```typescript
+   export interface ChatResponse {
+     answer: string;
+     reasoning: string;
+     extracted_values: string[];
+     program: string[];
+     format_type: string;
+     model: string;
+     calculation_memory: number[];
+   }
+   ```
+
+4. Update `frontend/src/lib/types.ts` — expand ChatMessage:
+   ```typescript
+   export interface ChatMessage {
+     role: 'user' | 'assistant';
+     content: string;
+     timestamp: Date;
+     isError?: boolean;
+     reasoning?: string;         // LLM's reasoning steps
+     extractedValues?: string[]; // Values identified
+     program?: string[];         // DSL program executed
+     formatType?: string;        // Answer format type
+   }
+   ```
+
+5. Update `frontend/src/hooks/useChat.ts`:
+   - When adding assistant messages, include reasoning, extractedValues, program, formatType
+     from the ChatResponse
+
+6. Update `frontend/src/components/ChatPanel.tsx` — display reasoning:
+   - Below each assistant answer bubble, add a collapsible "Show reasoning" section
+   - When expanded, show:
+     a. **Reasoning**: The LLM's natural language explanation (rendered as text)
+     b. **Extracted Values**: List of values the LLM found (as pills/badges)
+     c. **Program**: The DSL program steps (in a code block with monospace font)
+   - The reasoning section should be collapsed by default, with a small toggle button
+   - Style it subtly (lighter text, smaller font) so the answer remains prominent
+
+7. Commit: "feat: expose LLM reasoning in chatbot responses"
+```
+
+---
+
+### Step 29: Wire everything together and update App.tsx ⚡ Execute
+- [ ] **DONE**
+
+**Prompt:**
+```
+Integrate all PDF-related changes across the application.
+
+1. Update `frontend/src/App.tsx`:
+   - Use the updated useDocuments hook (now fetches from API)
+   - Pass document ID and section index to useChat instead of raw document
+   - Wire DocumentViewer to load PDFs from `/api/documents/{id}/pdf`
+   - Wire section selector: when user picks a section, update chatbot context
+   - Remove any references to old ConvFinQARecord/example_records.json
+   - Suggestions: derive from the document context or provide generic financial questions
+     (e.g., "What was the total revenue?", "Compare operating margins year over year")
+
+2. Update `frontend/vite.config.ts` proxy to include the new endpoints:
+   ```typescript
+   proxy: {
+     '/api': {
+       target: 'http://localhost:8000',
+       changeOrigin: true,
+     }
+   }
+   ```
+   (Should already work since all new endpoints are under /api)
+
+3. Update `frontend/src/components/DocumentSelector.tsx`:
+   - Show documents from the API (DocumentInfo[]) instead of SampleDocument[]
+   - Show section count badge on each document
+   - Remove old ConvFinQARecord-specific display logic
+
+4. Update `frontend/src/components/Header.tsx`:
+   - Document title from selected DocumentInfo
+
+5. Verify the full flow works:
+   - App loads → fetches document list from backend
+   - Select a document → PDF renders in viewer, extracted sections available
+   - Select a section → chatbot context updates
+   - Ask a question → reasoning + answer displayed
+   - Upload a PDF → extraction runs, document added to list
+
+6. Commit: "feat: wire PDF document flow end-to-end"
+```
+
+---
+
+### Step 30: Test and fix PDF integration ⚡ Execute
+- [ ] **DONE**
+
+**Prompt:**
+```
+End-to-end testing of the PDF document integration.
+
+1. Start both servers:
+   - Backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload --port 8000`
+   - Frontend: `cd frontend && npm run dev`
+
+2. Verify these flows:
+   - [ ] Backend starts and pre-extracts both example PDFs on startup
+   - [ ] `GET /api/documents` returns both example documents
+   - [ ] `GET /api/documents/ups-q4-2025-earnings` returns extracted sections with tables
+   - [ ] `GET /api/documents/ups-q4-2025-earnings/pdf` serves the PDF file
+   - [ ] Frontend loads and shows document list from API
+   - [ ] PDF renders correctly in the document viewer
+   - [ ] Page navigation works (next/previous/jump to page)
+   - [ ] Zoom controls work
+   - [ ] Section selector shows extracted tables
+   - [ ] Clicking a section scrolls PDF to that page
+   - [ ] Chat sends question with document_id and section_index
+   - [ ] Chat response includes reasoning, and it displays in collapsible section
+   - [ ] Multi-turn conversation works (calculation memory preserved)
+   - [ ] PDF upload works: file accepted, extraction runs, document appears in list
+   - [ ] Large PDF (167-page 10-K) loads and renders without performance issues
+   - [ ] TypeScript compiles: `cd frontend && npx tsc --noEmit`
+   - [ ] Production build works: `cd frontend && npm run build`
+
+3. Fix any issues found.
+
+4. Commit: "fix: resolve issues from PDF integration testing"
+```
+
+---
+
 ## Summary
 
 | Phase | Steps | What's Built |
@@ -780,3 +1269,4 @@ NOTE: If wrangler/render login requires interactive auth, skip the actual deploy
 | 6. Upload & Formatting | 16–17 | Upload modal, answer formatting |
 | 7. Polish | 18 | Error handling, loading states, responsive UX |
 | 8. Ship | 19–21 | E2E testing, production build, deploy |
+| **9. PDF Support** | **22–30** | **PDF storage, extraction pipeline, PDF viewer, PDF upload, reasoning display** |
