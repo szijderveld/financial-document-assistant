@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ChatMessage } from '../lib/types';
+import { formatAnswer } from '../lib/formatters';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -181,7 +182,18 @@ function ChatPanel({
                   </div>
                   <div className={`chat-bubble chat-bubble-${msg.role}`}>
                     {msg.role === 'assistant' ? (
-                      <span className="chat-answer-highlight">{msg.content}</span>
+                      <>
+                        <span className="chat-answer-highlight">
+                          {formatAnswer(msg.content).formatted}
+                        </span>
+                        <span className="chat-answer-context">
+                          {formatAnswer(msg.content).type === 'percentage'
+                            ? 'Calculated from document data'
+                            : formatAnswer(msg.content).type === 'number'
+                              ? 'Extracted from table'
+                              : 'Based on document analysis'}
+                        </span>
+                      </>
                     ) : (
                       msg.content
                     )}

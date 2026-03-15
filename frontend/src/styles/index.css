@@ -1393,6 +1393,13 @@ input:focus, textarea:focus, select:focus {
   border-left: 3px solid var(--accent);
 }
 
+.chat-answer-context {
+  display: block;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
 /* Typing Indicator */
 .chat-typing-indicator {
   display: flex;

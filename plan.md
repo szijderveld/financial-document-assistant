@@ -591,7 +591,7 @@ Build the UploadModal for custom document input.
 ```
 
 ### Step 17: Build answer formatting utilities ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
