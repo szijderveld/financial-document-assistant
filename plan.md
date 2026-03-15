@@ -272,7 +272,7 @@ Connect the agent to the FastAPI chat endpoint.
 ## Phase 3: Frontend Types & Styles
 
 ### Step 6: Set up TypeScript types ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```
