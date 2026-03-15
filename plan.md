@@ -975,7 +975,7 @@ Add backend API endpoints for PDF document management: upload, extraction, and s
 ---
 
 ### Step 25: Replace DocumentViewer with PDF renderer ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```

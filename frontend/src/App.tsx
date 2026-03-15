@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Header from './components/Header';
 import HistorySidebar from './components/HistorySidebar';
 import DocumentViewer from './components/DocumentViewer';
@@ -8,6 +8,8 @@ import { useDocuments } from './hooks/useDocuments';
 import { useChat } from './hooks/useChat';
 import type { ConversationItem, FinancialDocument } from './lib/types';
 
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [chatVisible, setChatVisible] = useState(true);
@@ -15,6 +17,7 @@ function App() {
   const [selectedModel, setSelectedModel] = useState<'llama-3.1-8b' | 'llama-3.3-70b'>('llama-3.1-8b');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [activeConversation, setActiveConversation] = useState(0);
+  const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
 
   const docs = useDocuments();
   const chat = useChat();
@@ -31,6 +34,7 @@ function App() {
   const handleSelectDocument = (index: number) => {
     docs.selectDocument(index);
     chat.clearChat();
+    setSelectedSectionIndex(0);
   };
 
   const handleNewChat = () => {
@@ -46,12 +50,22 @@ function App() {
 
   const selectedDocument = docs.selectedDocument;
 
-  const documentMeta = selectedDocument
-    ? {
-        company: selectedDocument.label,
-        shortLabel: selectedDocument.shortLabel,
-        subtitle: selectedDocument.description,
-      }
+  // Build sections from the current document for the viewer's extracted data panel
+  const sections = useMemo(() => {
+    if (!selectedDocument) return [];
+    const doc = selectedDocument.record.doc;
+    return [{
+      table_title: selectedDocument.label,
+      page_numbers: [] as number[],
+      table: doc.table,
+      pre_text: doc.pre_text,
+      post_text: doc.post_text,
+    }];
+  }, [selectedDocument]);
+
+  // Construct PDF URL from document ID (works with API-served documents)
+  const pdfUrl = selectedDocument?.id && !selectedDocument.id.startsWith('custom-')
+    ? `${API_BASE}/api/documents/${selectedDocument.id}/pdf`
     : null;
 
   // Build conversations list from chat messages
@@ -117,8 +131,11 @@ function App() {
             </div>
           ) : (
             <DocumentViewer
-              document={selectedDocument?.record.doc ?? null}
-              documentMeta={documentMeta}
+              documentId={selectedDocument?.id ?? null}
+              pdfUrl={pdfUrl}
+              sections={sections}
+              selectedSectionIndex={selectedSectionIndex}
+              onSelectSection={setSelectedSectionIndex}
               documents={docs.documents}
               selectedIndex={docs.selectedIndex}
               onSelectDocument={handleSelectDocument}
