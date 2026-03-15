@@ -1,0 +1,22 @@
+{
+  "documents": [
+    {
+      "id": "ups-q4-2025-earnings",
+      "filename": "ups_q4_2025_earnings.pdf",
+      "label": "UPS — Q4 2025 Earnings Release",
+      "shortLabel": "UPS-ER",
+      "description": "Fourth quarter 2025 results and 2026 guidance",
+      "company": "United Parcel Service",
+      "pages": 16
+    },
+    {
+      "id": "ups-10k-2025",
+      "filename": "ups_10k_2025.pdf",
+      "label": "UPS — 2025 Annual Report (10-K)",
+      "shortLabel": "UPS-10K",
+      "description": "SEC annual filing for fiscal year ended December 31, 2025",
+      "company": "United Parcel Service",
+      "pages": 167
+    }
+  ]
+}
