@@ -192,7 +192,7 @@ Create the table formatting utility, ported from reference/src/agents/base.py.
 ```
 Build the LangChain agent that calls Cloudflare Workers AI. This is the core intelligence of the app.
 
-1. Read `reference/src/agents/direct_prompt_agent/direct_prompt_agent.py` and `reference/src/agents/base.py` for inspiration. Do NOT copy them directly — rebuild the logic cleanly.
+1. Read `reference/src/agents/direct_prompt_agent/cot_dsl_agent.py` and `reference/src/agents/base.py` for inspiration. Do NOT copy them directly — rebuild the logic cleanly.
 
 2. Create `backend/agent.py`:
    - Import `ChatCloudflareWorkersAI` from `langchain_community.chat_models`
