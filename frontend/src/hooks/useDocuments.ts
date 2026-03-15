@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ConvFinQARecord, ExampleRecords, FinancialDocument, SampleDocument } from '../lib/types';
+import type { ExtractedDocument } from '../lib/api';
 
 const DOCUMENT_META: { label: string; shortLabel: string; description: string }[] = [
   { label: 'JKHY Corp — Cash Flow Analysis', shortLabel: 'JK', description: 'Fiscal Year 2007–2009' },
@@ -76,6 +77,28 @@ export function useDocuments() {
     setSelectedIndex(documents.length); // select the newly added doc
   }, [documents.length]);
 
+  const addUploadedDocument = useCallback((extracted: ExtractedDocument) => {
+    const firstSection = extracted.sections[0];
+    const doc: FinancialDocument = firstSection
+      ? { pre_text: firstSection.pre_text, post_text: firstSection.post_text, table: firstSection.table }
+      : { pre_text: '', post_text: '', table: {} };
+
+    const newDoc: SampleDocument = {
+      id: extracted.id,
+      label: extracted.filename.replace(/\.pdf$/i, ''),
+      shortLabel: extracted.filename.slice(0, 2).toUpperCase(),
+      description: `${extracted.page_count} pages · ${extracted.sections.length} sections`,
+      record: {
+        id: extracted.id,
+        doc,
+        dialogue: { conv_questions: [], conv_answers: [], turn_program: [], executed_answers: [], qa_split: [] },
+        features: { num_dialogue_turns: 0, has_type2_question: false, has_duplicate_columns: false, has_non_numeric_values: false },
+      },
+    };
+    setDocuments((prev) => [...prev, newDoc]);
+    setSelectedIndex(documents.length);
+  }, [documents.length]);
+
   return {
     documents,
     selectedIndex,
@@ -84,5 +107,6 @@ export function useDocuments() {
     isLoading,
     selectDocument,
     addDocument,
+    addUploadedDocument,
   };
 }

@@ -1011,7 +1011,7 @@ Replace the current HTML-based document viewer with a native PDF renderer.
 ---
 
 ### Step 26: Update UploadModal for PDF upload ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```

@@ -2048,6 +2048,138 @@ input:focus, textarea:focus, select:focus {
   color: var(--text-secondary);
 }
 
+.modal-file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-file-name {
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-file-size {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+}
+
+.modal-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.modal-progress-bar {
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.modal-progress-bar-fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 2px;
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-indeterminate {
+  0% { width: 0%; margin-left: 0%; }
+  50% { width: 60%; margin-left: 20%; }
+  100% { width: 0%; margin-left: 100%; }
+}
+
+.modal-progress-text {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.modal-extraction-results {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+.modal-extraction-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.modal-extraction-stats {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+}
+
+.modal-extraction-divider {
+  margin: 0 4px;
+}
+
+.modal-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  color: rgb(234, 179, 8);
+  margin-top: 8px;
+}
+
+.modal-section-previews {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.modal-section-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+}
+
+.modal-section-preview-title {
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-section-preview-meta {
+  color: var(--text-tertiary);
+  margin-left: 12px;
+  white-space: nowrap;
+}
+
+.modal-actions {
+  margin-top: 16px;
+}
+
 /* ============================================
    Skeleton Loading
    ============================================ */

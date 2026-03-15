@@ -6,7 +6,8 @@ import ChatPanel from './components/ChatPanel';
 import UploadModal from './components/UploadModal';
 import { useDocuments } from './hooks/useDocuments';
 import { useChat } from './hooks/useChat';
-import type { ConversationItem, FinancialDocument } from './lib/types';
+import type { ConversationItem } from './lib/types';
+import type { ExtractedDocument } from './lib/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -42,8 +43,8 @@ function App() {
     setActiveConversation(-1);
   };
 
-  const handleUploadDocument = (doc: FinancialDocument) => {
-    docs.addDocument(doc);
+  const handleUploadComplete = (doc: ExtractedDocument) => {
+    docs.addUploadedDocument(doc);
     chat.clearChat();
     setUploadOpen(false);
   };
@@ -162,7 +163,7 @@ function App() {
       <UploadModal
         isOpen={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        onUpload={handleUploadDocument}
+        onUploadComplete={handleUploadComplete}
       />
     </>
   );

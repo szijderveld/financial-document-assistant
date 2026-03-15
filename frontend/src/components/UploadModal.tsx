@@ -1,76 +1,44 @@
 import { useState, useRef, useCallback } from 'react';
-import type { FinancialDocument } from '../lib/types';
+
+interface ExtractedSection {
+  pre_text: string;
+  post_text: string;
+  table: Record<string, Record<string, string | number>>;
+  table_title: string;
+  page_numbers: number[];
+}
+
+interface ExtractedDocument {
+  id: string;
+  filename: string;
+  sections: ExtractedSection[];
+  full_text: string;
+  page_count: number;
+  extraction_status: string;
+}
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (doc: FinancialDocument) => void;
+  onUploadComplete: (doc: ExtractedDocument) => void;
 }
 
-type Tab = 'paste' | 'json';
+type UploadState = 'idle' | 'uploading' | 'success' | 'error';
 
-function parseTableText(text: string): Record<string, Record<string, string | number>> | null {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return null;
-
-  // Detect separator: tab or comma
-  const sep = lines[0].includes('\t') ? '\t' : ',';
-  const headers = lines[0].split(sep).map((h) => h.trim());
-  if (headers.length < 2) return null;
-
-  // First header is the row label column; rest are data columns
-  const colNames = headers.slice(1);
-  const table: Record<string, Record<string, string | number>> = {};
-  for (const col of colNames) {
-    table[col] = {};
-  }
-
-  for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i].split(sep).map((c) => c.trim());
-    if (!cells[0]) continue;
-    const rowLabel = cells[0];
-    for (let j = 0; j < colNames.length; j++) {
-      const raw = cells[j + 1] ?? '';
-      const num = Number(raw);
-      table[colNames[j]][rowLabel] = isNaN(num) || raw === '' ? raw : num;
-    }
-  }
-
-  return table;
-}
-
-function validateDocument(obj: unknown): string | null {
-  if (!obj || typeof obj !== 'object') return 'Invalid JSON object';
-  const doc = obj as Record<string, unknown>;
-  if (typeof doc.pre_text !== 'string') return 'Missing or invalid "pre_text" field (must be a string)';
-  if (typeof doc.post_text !== 'string') return 'Missing or invalid "post_text" field (must be a string)';
-  if (!doc.table || typeof doc.table !== 'object') return 'Missing or invalid "table" field (must be an object)';
-  return null;
-}
-
-export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('paste');
-
-  // Paste tab state
-  const [preText, setPreText] = useState('');
-  const [postText, setPostText] = useState('');
-  const [tableText, setTableText] = useState('');
-  const [pasteError, setPasteError] = useState('');
-
-  // JSON tab state
-  const [jsonContent, setJsonContent] = useState('');
-  const [jsonError, setJsonError] = useState('');
+export default function UploadModal({ isOpen, onClose, onUploadComplete }: UploadModalProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [uploadState, setUploadState] = useState<UploadState>('idle');
+  const [uploadError, setUploadError] = useState('');
+  const [extractedDoc, setExtractedDoc] = useState<ExtractedDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetState = useCallback(() => {
-    setPreText('');
-    setPostText('');
-    setTableText('');
-    setPasteError('');
-    setJsonContent('');
-    setJsonError('');
+    setSelectedFile(null);
     setDragActive(false);
+    setUploadState('idle');
+    setUploadError('');
+    setExtractedDoc(null);
   }, []);
 
   const handleClose = () => {
@@ -78,81 +46,63 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
     onClose();
   };
 
-  const handlePasteSubmit = () => {
-    setPasteError('');
-    if (!tableText.trim()) {
-      setPasteError('Table data is required');
-      return;
-    }
-    const table = parseTableText(tableText);
-    if (!table || Object.keys(table).length === 0) {
-      setPasteError('Could not parse table data. Use tab-separated or comma-separated format with headers in the first row.');
-      return;
-    }
-    const doc: FinancialDocument = {
-      pre_text: preText.trim(),
-      post_text: postText.trim(),
-      table,
-    };
-    onUpload(doc);
-    handleClose();
-  };
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
-  const processJsonFile = (text: string) => {
-    setJsonError('');
-    setJsonContent(text);
-    try {
-      const parsed = JSON.parse(text);
-      const err = validateDocument(parsed);
-      if (err) {
-        setJsonError(err);
-      }
-    } catch {
-      setJsonError('Invalid JSON format');
-    }
-  };
-
-  const handleJsonSubmit = () => {
-    setJsonError('');
-    if (!jsonContent.trim()) {
-      setJsonError('Please upload or paste a JSON file');
+  const validateAndSetFile = (file: File) => {
+    setUploadError('');
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      setUploadError('Only PDF files are accepted');
       return;
     }
-    try {
-      const parsed = JSON.parse(jsonContent);
-      const err = validateDocument(parsed);
-      if (err) {
-        setJsonError(err);
-        return;
-      }
-      const doc: FinancialDocument = {
-        pre_text: parsed.pre_text,
-        post_text: parsed.post_text,
-        table: parsed.table,
-      };
-      onUpload(doc);
-      handleClose();
-    } catch {
-      setJsonError('Invalid JSON format');
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError('File size exceeds 50MB limit');
+      return;
     }
+    setSelectedFile(file);
+    setUploadState('idle');
+    setExtractedDoc(null);
   };
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.name.endsWith('.json')) {
-      file.text().then(processJsonFile);
-    } else {
-      setJsonError('Please drop a .json file');
-    }
+    if (file) validateAndSetFile(file);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      file.text().then(processJsonFile);
+    if (file) validateAndSetFile(file);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    setUploadState('uploading');
+    setUploadError('');
+
+    try {
+      const { uploadDocument } = await import('../lib/api');
+      const doc = await uploadDocument(selectedFile);
+      setExtractedDoc(doc);
+      setUploadState('success');
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      setUploadState('error');
     }
+  };
+
+  const handleAddDocument = () => {
+    if (extractedDoc) {
+      onUploadComplete(extractedDoc);
+      handleClose();
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   if (!isOpen) return null;
@@ -170,132 +120,135 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
           </button>
         </div>
 
-        <div className="modal-tabs">
-          <button
-            className={`modal-tab${activeTab === 'paste' ? ' active' : ''}`}
-            onClick={() => setActiveTab('paste')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-            </svg>
-            Paste Data
-          </button>
-          <button
-            className={`modal-tab${activeTab === 'json' ? ' active' : ''}`}
-            onClick={() => setActiveTab('json')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            JSON Upload
-          </button>
-        </div>
-
         <div className="modal-body">
-          {activeTab === 'paste' && (
-            <div className="modal-paste-tab">
-              <div className="modal-field">
-                <label className="modal-label">Narrative text before the table</label>
-                <textarea
-                  className="modal-textarea"
-                  rows={3}
-                  placeholder="Enter the context that appears before the financial table..."
-                  value={preText}
-                  onChange={(e) => setPreText(e.target.value)}
-                />
-              </div>
-              <div className="modal-field">
-                <label className="modal-label">
-                  Table data
-                  <span className="modal-label-required">*</span>
-                </label>
-                <textarea
-                  className="modal-textarea modal-textarea-table"
-                  rows={6}
-                  placeholder={"Label\t2024\t2023\nRevenue\t1200\t1100\nExpenses\t800\t750"}
-                  value={tableText}
-                  onChange={(e) => setTableText(e.target.value)}
-                />
-                <span className="modal-hint">Paste tab-separated or CSV table data. First row = headers, first column = row labels.</span>
-              </div>
-              <div className="modal-field">
-                <label className="modal-label">Narrative text after the table</label>
-                <textarea
-                  className="modal-textarea"
-                  rows={3}
-                  placeholder="Enter any additional notes that appear after the table..."
-                  value={postText}
-                  onChange={(e) => setPostText(e.target.value)}
-                />
-              </div>
-              {pasteError && <div className="modal-error">{pasteError}</div>}
-              <button className="modal-submit-btn" onClick={handlePasteSubmit}>
-                Load Document
-              </button>
-            </div>
-          )}
-
-          {activeTab === 'json' && (
-            <div className="modal-json-tab">
-              <div
-                className={`modal-dropzone${dragActive ? ' active' : ''}${jsonContent ? ' has-file' : ''}`}
-                onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-                onDragLeave={() => setDragActive(false)}
-                onDrop={handleFileDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                />
-                {jsonContent ? (
-                  <div className="modal-dropzone-filled">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    <span>JSON file loaded</span>
-                    <button
-                      className="modal-dropzone-clear"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setJsonContent('');
-                        setJsonError('');
-                      }}
-                    >
-                      Clear
-                    </button>
-                  </div>
-                ) : (
-                  <div className="modal-dropzone-empty">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span className="modal-dropzone-text">
-                      Drop a <strong>.json</strong> file here or click to browse
-                    </span>
-                    <span className="modal-dropzone-hint">
-                      Must contain pre_text, post_text, and table fields
-                    </span>
-                  </div>
+          {/* Drag & Drop Zone */}
+          <div
+            className={`modal-dropzone${dragActive ? ' active' : ''}${selectedFile ? ' has-file' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={handleFileDrop}
+            onClick={() => uploadState !== 'uploading' && fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
+            {selectedFile ? (
+              <div className="modal-dropzone-filled">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <div className="modal-file-info">
+                  <span className="modal-file-name">{selectedFile.name}</span>
+                  <span className="modal-file-size">{formatFileSize(selectedFile.size)}</span>
+                </div>
+                {uploadState === 'idle' && (
+                  <button
+                    className="modal-dropzone-clear"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedFile(null);
+                      setExtractedDoc(null);
+                      setUploadError('');
+                    }}
+                  >
+                    Clear
+                  </button>
                 )}
               </div>
-              {jsonError && <div className="modal-error">{jsonError}</div>}
-              <button
-                className="modal-submit-btn"
-                onClick={handleJsonSubmit}
-                disabled={!jsonContent}
-              >
-                Load Document
-              </button>
+            ) : (
+              <div className="modal-dropzone-empty">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <span className="modal-dropzone-text">
+                  Drop a <strong>.pdf</strong> file here or click to browse
+                </span>
+                <span className="modal-dropzone-hint">Max 50MB</span>
+              </div>
+            )}
+          </div>
+
+          {/* Upload Progress */}
+          {uploadState === 'uploading' && (
+            <div className="modal-progress">
+              <div className="modal-progress-bar">
+                <div className="modal-progress-bar-fill" />
+              </div>
+              <span className="modal-progress-text">Uploading and extracting tables...</span>
             </div>
           )}
+
+          {/* Extraction Results */}
+          {uploadState === 'success' && extractedDoc && (
+            <div className="modal-extraction-results">
+              <div className="modal-extraction-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>Extraction complete</span>
+              </div>
+              <div className="modal-extraction-stats">
+                <span>{extractedDoc.page_count} page{extractedDoc.page_count !== 1 ? 's' : ''}</span>
+                <span className="modal-extraction-divider">·</span>
+                <span>{extractedDoc.sections.length} section{extractedDoc.sections.length !== 1 ? 's' : ''} found</span>
+              </div>
+              {extractedDoc.sections.length === 0 && (
+                <div className="modal-warning">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <span>No financial tables detected in this document</span>
+                </div>
+              )}
+              {extractedDoc.sections.length > 0 && (
+                <div className="modal-section-previews">
+                  {extractedDoc.sections.map((section, i) => (
+                    <div key={i} className="modal-section-preview">
+                      <span className="modal-section-preview-title">
+                        {section.table_title || `Section ${i + 1}`}
+                      </span>
+                      <span className="modal-section-preview-meta">
+                        {Object.keys(section.table).length} columns · {section.page_numbers.length > 0 ? `Page ${section.page_numbers.join(', ')}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Error */}
+          {(uploadError || uploadState === 'error') && (
+            <div className="modal-error">{uploadError || 'Upload failed'}</div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="modal-actions">
+            {uploadState === 'idle' && selectedFile && (
+              <button className="modal-submit-btn" onClick={handleUpload}>
+                Upload & Extract
+              </button>
+            )}
+            {uploadState === 'success' && extractedDoc && (
+              <button className="modal-submit-btn" onClick={handleAddDocument}>
+                Add Document
+              </button>
+            )}
+            {uploadState === 'error' && (
+              <button className="modal-submit-btn" onClick={handleUpload}>
+                Retry Upload
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
