@@ -841,7 +841,7 @@ Reorganize the example document files for PDF-based document support.
 ---
 
 ### Step 23: Build the PDF extraction pipeline 🧠 Plan → Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```

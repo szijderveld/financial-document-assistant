@@ -1,6 +1,23 @@
 from pydantic import BaseModel
 
 
+class ExtractedSection(BaseModel):
+    pre_text: str
+    post_text: str
+    table: dict[str, dict[str, float | str | int]]
+    table_title: str = ""
+    page_numbers: list[int] = []
+
+
+class ExtractedDocument(BaseModel):
+    id: str
+    filename: str
+    sections: list[ExtractedSection]
+    full_text: str
+    page_count: int
+    extraction_status: str = "completed"
+
+
 class Document(BaseModel):
     pre_text: str
     post_text: str
