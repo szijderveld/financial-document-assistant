@@ -1,112 +1,95 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { ConvFinQARecord, ExampleRecords, FinancialDocument, SampleDocument } from '../lib/types';
-import type { ExtractedDocument } from '../lib/api';
-
-const DOCUMENT_META: { label: string; shortLabel: string; description: string }[] = [
-  { label: 'JKHY Corp — Cash Flow Analysis', shortLabel: 'JK', description: 'Fiscal Year 2007–2009' },
-  { label: 'Republic Services — Pro Forma', shortLabel: 'RS', description: 'Fiscal Year 2007–2008' },
-  { label: 'UPS — Financial Overview', shortLabel: 'UP', description: 'Fiscal Year 2008–2009' },
-  { label: 'UPS — Revenue Analysis', shortLabel: 'UP', description: 'Fiscal Year 2008–2009' },
-  { label: 'Celanese Corp — Segment Data', shortLabel: 'CE', description: 'Fiscal Year 2008–2010' },
-];
-
-function mapRecordToSampleDocument(record: ConvFinQARecord, index: number): SampleDocument {
-  const meta = DOCUMENT_META[index] ?? {
-    label: `Document ${index + 1}`,
-    shortLabel: `D${index + 1}`,
-    description: '',
-  };
-
-  return {
-    id: record.id,
-    label: meta.label,
-    shortLabel: meta.shortLabel,
-    description: meta.description,
-    record,
-  };
-}
+import { useState, useEffect, useCallback } from 'react';
+import type { SampleDocument, ExtractedDocument, ExtractedSection, DocumentInfo } from '../lib/types';
+import { fetchDocuments, fetchDocument } from '../lib/api';
 
 export function useDocuments() {
   const [documents, setDocuments] = useState<SampleDocument[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedSection, setSelectedSection] = useState(0);
+  const [extractedData, setExtractedData] = useState<ExtractedDocument | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch document list from API on mount
   useEffect(() => {
-    fetch('/data/example_records.json')
-      .then((res) => res.json())
-      .then((data: ExampleRecords) => {
-        const docs = data.examples.map(mapRecordToSampleDocument);
+    fetchDocuments()
+      .then((items: DocumentInfo[]) => {
+        const docs: SampleDocument[] = items.map((item) => ({
+          id: item.id,
+          label: item.label || item.filename.replace(/\.pdf$/i, ''),
+          shortLabel: item.shortLabel || item.filename.slice(0, 2).toUpperCase(),
+          description: item.description || `${item.page_count} pages · ${item.section_count} sections`,
+          sectionCount: item.section_count,
+          pageCount: item.page_count,
+        }));
         setDocuments(docs);
       })
       .catch((err) => {
-        console.error('Failed to load example records:', err);
+        console.error('Failed to load documents:', err);
       })
       .finally(() => {
         setIsLoading(false);
       });
   }, []);
 
+  // Fetch extracted data when selected document changes
+  useEffect(() => {
+    const doc = documents[selectedIndex];
+    if (!doc) {
+      setExtractedData(null);
+      return;
+    }
+
+    setExtractedData(null);
+    fetchDocument(doc.id)
+      .then((data) => {
+        setExtractedData(data);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch document data:', err);
+      });
+  }, [documents, selectedIndex]);
+
   const selectedDocument = documents[selectedIndex] ?? null;
 
-  const suggestions = useMemo(() => {
-    if (!selectedDocument) return [];
-    return selectedDocument.record.dialogue.conv_questions;
-  }, [selectedDocument]);
+  const sections: ExtractedSection[] = extractedData?.sections ?? [];
 
   const selectDocument = (index: number) => {
     if (index >= 0 && index < documents.length) {
       setSelectedIndex(index);
+      setSelectedSection(0);
     }
   };
 
-  const addDocument = useCallback((doc: FinancialDocument) => {
-    const customIndex = documents.filter((d) => d.id.startsWith('custom-')).length + 1;
-    const newDoc: SampleDocument = {
-      id: `custom-${Date.now()}`,
-      label: `Custom Document ${customIndex}`,
-      shortLabel: `C${customIndex}`,
-      description: 'User-uploaded document',
-      record: {
-        id: `custom-${Date.now()}`,
-        doc,
-        dialogue: { conv_questions: [], conv_answers: [], turn_program: [], executed_answers: [], qa_split: [] },
-        features: { num_dialogue_turns: 0, has_type2_question: false, has_duplicate_columns: false, has_non_numeric_values: false },
-      },
-    };
-    setDocuments((prev) => [...prev, newDoc]);
-    setSelectedIndex(documents.length); // select the newly added doc
-  }, [documents.length]);
+  const selectSection = (index: number) => {
+    if (extractedData && index >= 0 && index < extractedData.sections.length) {
+      setSelectedSection(index);
+    }
+  };
 
-  const addUploadedDocument = useCallback((extracted: ExtractedDocument) => {
-    const firstSection = extracted.sections[0];
-    const doc: FinancialDocument = firstSection
-      ? { pre_text: firstSection.pre_text, post_text: firstSection.post_text, table: firstSection.table }
-      : { pre_text: '', post_text: '', table: {} };
-
+  const addUploadedDocument = useCallback((doc: DocumentInfo) => {
     const newDoc: SampleDocument = {
-      id: extracted.id,
-      label: extracted.filename.replace(/\.pdf$/i, ''),
-      shortLabel: extracted.filename.slice(0, 2).toUpperCase(),
-      description: `${extracted.page_count} pages · ${extracted.sections.length} sections`,
-      record: {
-        id: extracted.id,
-        doc,
-        dialogue: { conv_questions: [], conv_answers: [], turn_program: [], executed_answers: [], qa_split: [] },
-        features: { num_dialogue_turns: 0, has_type2_question: false, has_duplicate_columns: false, has_non_numeric_values: false },
-      },
+      id: doc.id,
+      label: doc.label || doc.filename.replace(/\.pdf$/i, ''),
+      shortLabel: doc.shortLabel || doc.filename.slice(0, 2).toUpperCase(),
+      description: doc.description || `${doc.page_count} pages · ${doc.section_count} sections`,
+      sectionCount: doc.section_count,
+      pageCount: doc.page_count,
     };
     setDocuments((prev) => [...prev, newDoc]);
     setSelectedIndex(documents.length);
+    setSelectedSection(0);
   }, [documents.length]);
 
   return {
     documents,
     selectedIndex,
     selectedDocument,
-    suggestions,
+    selectedSection,
+    sections,
+    extractedData,
     isLoading,
     selectDocument,
-    addDocument,
+    selectSection,
     addUploadedDocument,
   };
 }

@@ -1042,7 +1042,7 @@ Rework the UploadModal to accept PDF files instead of JSON/paste input.
 ---
 
 ### Step 27: Update types, hooks, and document state management ⚡ Execute
-- [ ] **DONE**
+- [x] **DONE**
 
 **Prompt:**
 ```

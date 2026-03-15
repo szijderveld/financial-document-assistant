@@ -1,33 +1,29 @@
-export interface FinancialDocument {
+export interface ExtractedSection {
   pre_text: string;
   post_text: string;
   table: Record<string, Record<string, string | number>>;
+  table_title: string;
+  page_numbers: number[];
 }
 
-export interface Dialogue {
-  conv_questions: string[];
-  conv_answers: string[];
-  turn_program: string[];
-  executed_answers: number[];
-  qa_split: boolean[];
-}
-
-export interface DocumentFeatures {
-  num_dialogue_turns: number;
-  has_type2_question: boolean;
-  has_duplicate_columns: boolean;
-  has_non_numeric_values: boolean;
-}
-
-export interface ConvFinQARecord {
+export interface DocumentInfo {
   id: string;
-  doc: FinancialDocument;
-  dialogue: Dialogue;
-  features: DocumentFeatures;
+  filename: string;
+  label: string;
+  shortLabel: string;
+  description: string;
+  company: string;
+  section_count: number;
+  page_count: number;
 }
 
-export interface ExampleRecords {
-  examples: ConvFinQARecord[];
+export interface ExtractedDocument {
+  id: string;
+  filename: string;
+  sections: ExtractedSection[];
+  full_text: string;
+  page_count: number;
+  extraction_status: string;
 }
 
 export interface ChatMessage {
@@ -43,7 +39,8 @@ export interface ConversationHistoryEntry {
 }
 
 export interface ChatRequest {
-  document: FinancialDocument;
+  document_id: string;
+  section_index: number;
   conversation_history: ConversationHistoryEntry[];
   question: string;
   model: string;
@@ -61,7 +58,8 @@ export interface SampleDocument {
   label: string;
   shortLabel: string;
   description: string;
-  record: ConvFinQARecord;
+  sectionCount: number;
+  pageCount: number;
 }
 
 export interface ConversationItem {

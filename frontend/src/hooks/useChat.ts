@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { ChatMessage, ConversationHistoryEntry, FinancialDocument } from '../lib/types';
+import type { ChatMessage, ConversationHistoryEntry } from '../lib/types';
 import { sendChatMessage } from '../lib/api';
 
 export function useChat() {
@@ -8,10 +8,10 @@ export function useChat() {
   const [calculationMemory, setCalculationMemory] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lastFailedRef = useRef<{ question: string; document: FinancialDocument; model: string } | null>(null);
+  const lastFailedRef = useRef<{ question: string; documentId: string; sectionIndex: number; model: string } | null>(null);
 
   const sendMessage = useCallback(
-    async (question: string, document: FinancialDocument, model: string) => {
+    async (question: string, documentId: string, sectionIndex: number, model: string) => {
       const userMessage: ChatMessage = {
         role: 'user',
         content: question,
@@ -24,7 +24,8 @@ export function useChat() {
 
       try {
         const response = await sendChatMessage({
-          document,
+          document_id: documentId,
+          section_index: sectionIndex,
           conversation_history: conversationHistory,
           question,
           model,
@@ -52,7 +53,7 @@ export function useChat() {
         };
         setMessages((prev) => [...prev, errorMessage]);
         setError(errorMsg);
-        lastFailedRef.current = { question, document, model };
+        lastFailedRef.current = { question, documentId, sectionIndex, model };
       } finally {
         setIsLoading(false);
       }
@@ -62,7 +63,7 @@ export function useChat() {
 
   const retryLastMessage = useCallback(() => {
     if (!lastFailedRef.current) return;
-    const { question, document, model } = lastFailedRef.current;
+    const { question, documentId, sectionIndex, model } = lastFailedRef.current;
     // Remove the error message before retrying
     setMessages((prev) => {
       const last = prev[prev.length - 1];
@@ -70,12 +71,12 @@ export function useChat() {
       return prev;
     });
     lastFailedRef.current = null;
-    // Re-send without adding a new user message (it's already there)
     setIsLoading(true);
     setError(null);
 
     sendChatMessage({
-      document,
+      document_id: documentId,
+      section_index: sectionIndex,
       conversation_history: conversationHistory,
       question,
       model,
@@ -104,7 +105,7 @@ export function useChat() {
         };
         setMessages((prev) => [...prev, errorMessage]);
         setError(errorMsg);
-        lastFailedRef.current = { question, document, model };
+        lastFailedRef.current = { question, documentId, sectionIndex, model };
       })
       .finally(() => {
         setIsLoading(false);

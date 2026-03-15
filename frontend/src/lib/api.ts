@@ -1,4 +1,4 @@
-import type { ChatRequest, ChatResponse } from './types';
+import type { ChatRequest, ChatResponse, DocumentInfo, ExtractedDocument } from './types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -16,34 +16,6 @@ export async function sendChatMessage(request: ChatRequest): Promise<ChatRespons
   }
 
   return response.json();
-}
-
-export interface ExtractedSection {
-  pre_text: string;
-  post_text: string;
-  table: Record<string, Record<string, string | number>>;
-  table_title: string;
-  page_numbers: number[];
-}
-
-export interface ExtractedDocument {
-  id: string;
-  filename: string;
-  sections: ExtractedSection[];
-  full_text: string;
-  page_count: number;
-  extraction_status: string;
-}
-
-export interface DocumentListItem {
-  id: string;
-  filename: string;
-  label: string;
-  shortLabel: string;
-  description: string;
-  company: string;
-  section_count: number;
-  page_count: number;
 }
 
 export async function uploadDocument(file: File): Promise<ExtractedDocument> {
@@ -64,7 +36,7 @@ export async function uploadDocument(file: File): Promise<ExtractedDocument> {
   return response.json();
 }
 
-export async function fetchDocuments(): Promise<DocumentListItem[]> {
+export async function fetchDocuments(): Promise<DocumentInfo[]> {
   const response = await fetch(`${API_BASE}/api/documents`);
 
   if (!response.ok) {

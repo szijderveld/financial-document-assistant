@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import Header from './components/Header';
 import HistorySidebar from './components/HistorySidebar';
 import DocumentViewer from './components/DocumentViewer';
@@ -6,10 +6,8 @@ import ChatPanel from './components/ChatPanel';
 import UploadModal from './components/UploadModal';
 import { useDocuments } from './hooks/useDocuments';
 import { useChat } from './hooks/useChat';
-import type { ConversationItem } from './lib/types';
-import type { ExtractedDocument } from './lib/api';
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { getDocumentPdfUrl } from './lib/api';
+import type { ConversationItem, DocumentInfo } from './lib/types';
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -18,7 +16,6 @@ function App() {
   const [selectedModel, setSelectedModel] = useState<'llama-3.1-8b' | 'llama-3.3-70b'>('llama-3.1-8b');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [activeConversation, setActiveConversation] = useState(0);
-  const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
 
   const docs = useDocuments();
   const chat = useChat();
@@ -29,13 +26,12 @@ function App() {
 
   const handleSendMessage = (message: string) => {
     if (!docs.selectedDocument) return;
-    chat.sendMessage(message, docs.selectedDocument.record.doc, selectedModel);
+    chat.sendMessage(message, docs.selectedDocument.id, docs.selectedSection, selectedModel);
   };
 
   const handleSelectDocument = (index: number) => {
     docs.selectDocument(index);
     chat.clearChat();
-    setSelectedSectionIndex(0);
   };
 
   const handleNewChat = () => {
@@ -43,7 +39,7 @@ function App() {
     setActiveConversation(-1);
   };
 
-  const handleUploadComplete = (doc: ExtractedDocument) => {
+  const handleUploadComplete = (doc: DocumentInfo) => {
     docs.addUploadedDocument(doc);
     chat.clearChat();
     setUploadOpen(false);
@@ -51,23 +47,8 @@ function App() {
 
   const selectedDocument = docs.selectedDocument;
 
-  // Build sections from the current document for the viewer's extracted data panel
-  const sections = useMemo(() => {
-    if (!selectedDocument) return [];
-    const doc = selectedDocument.record.doc;
-    return [{
-      table_title: selectedDocument.label,
-      page_numbers: [] as number[],
-      table: doc.table,
-      pre_text: doc.pre_text,
-      post_text: doc.post_text,
-    }];
-  }, [selectedDocument]);
-
-  // Construct PDF URL from document ID (works with API-served documents)
-  const pdfUrl = selectedDocument?.id && !selectedDocument.id.startsWith('custom-')
-    ? `${API_BASE}/api/documents/${selectedDocument.id}/pdf`
-    : null;
+  // Construct PDF URL from document ID
+  const pdfUrl = selectedDocument ? getDocumentPdfUrl(selectedDocument.id) : null;
 
   // Build conversations list from chat messages
   const conversations: ConversationItem[] = chat.messages.length > 0
@@ -134,9 +115,9 @@ function App() {
             <DocumentViewer
               documentId={selectedDocument?.id ?? null}
               pdfUrl={pdfUrl}
-              sections={sections}
-              selectedSectionIndex={selectedSectionIndex}
-              onSelectSection={setSelectedSectionIndex}
+              sections={docs.sections}
+              selectedSectionIndex={docs.selectedSection}
+              onSelectSection={docs.selectSection}
               documents={docs.documents}
               selectedIndex={docs.selectedIndex}
               onSelectDocument={handleSelectDocument}
@@ -150,7 +131,7 @@ function App() {
           <ChatPanel
             messages={chat.messages}
             isLoading={chat.isLoading}
-            suggestions={docs.suggestions}
+            suggestions={[]}
             onSendMessage={handleSendMessage}
             onClose={() => setChatVisible(false)}
             onExpand={() => setChatExpanded(e => !e)}

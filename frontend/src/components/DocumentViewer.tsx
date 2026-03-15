@@ -4,7 +4,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import FinancialTable from './FinancialTable';
 import DocumentSelector from './DocumentSelector';
-import type { SampleDocument } from '../lib/types';
+import type { SampleDocument, ExtractedSection } from '../lib/types';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -12,18 +12,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-interface ExtractedSectionInfo {
-  table_title: string;
-  page_numbers: number[];
-  table: Record<string, Record<string, string | number>>;
-  pre_text: string;
-  post_text: string;
-}
-
 interface DocumentViewerProps {
   documentId: string | null;
   pdfUrl: string | null;
-  sections: ExtractedSectionInfo[];
+  sections: ExtractedSection[];
   selectedSectionIndex: number;
   onSelectSection: (index: number) => void;
   documents: SampleDocument[];

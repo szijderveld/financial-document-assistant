@@ -1,26 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
-
-interface ExtractedSection {
-  pre_text: string;
-  post_text: string;
-  table: Record<string, Record<string, string | number>>;
-  table_title: string;
-  page_numbers: number[];
-}
-
-interface ExtractedDocument {
-  id: string;
-  filename: string;
-  sections: ExtractedSection[];
-  full_text: string;
-  page_count: number;
-  extraction_status: string;
-}
+import type { ExtractedDocument, DocumentInfo } from '../lib/types';
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUploadComplete: (doc: ExtractedDocument) => void;
+  onUploadComplete: (doc: DocumentInfo) => void;
 }
 
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
@@ -94,7 +78,17 @@ export default function UploadModal({ isOpen, onClose, onUploadComplete }: Uploa
 
   const handleAddDocument = () => {
     if (extractedDoc) {
-      onUploadComplete(extractedDoc);
+      const docInfo: DocumentInfo = {
+        id: extractedDoc.id,
+        filename: extractedDoc.filename,
+        label: extractedDoc.filename.replace(/\.pdf$/i, ''),
+        shortLabel: extractedDoc.filename.slice(0, 2).toUpperCase(),
+        description: `${extractedDoc.page_count} pages · ${extractedDoc.sections.length} sections`,
+        company: '',
+        section_count: extractedDoc.sections.length,
+        page_count: extractedDoc.page_count,
+      };
+      onUploadComplete(docInfo);
       handleClose();
     }
   };
