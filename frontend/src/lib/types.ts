@@ -34,6 +34,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  isError?: boolean;
 }
 
 export interface ConversationHistoryEntry {

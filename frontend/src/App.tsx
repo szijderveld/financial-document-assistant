@@ -83,18 +83,52 @@ function App() {
           />
         </aside>
         <section className="app-content">
-          <DocumentViewer
-            document={selectedDocument?.record.doc ?? null}
-            documentMeta={documentMeta}
-            documents={docs.documents}
-            selectedIndex={docs.selectedIndex}
-            onSelectDocument={handleSelectDocument}
-            onToggleSidebar={() => setSidebarCollapsed(c => !c)}
-            onToggleChat={() => setChatVisible(v => !v)}
-            onUpload={() => setUploadOpen(true)}
-          />
+          {docs.isLoading ? (
+            <div className="doc-viewer">
+              <div className="doc-viewer-toolbar">
+                <div className="doc-viewer-toolbar-left">
+                  <div className="skeleton skeleton-btn" />
+                  <div className="skeleton skeleton-selector" />
+                </div>
+                <div className="doc-viewer-toolbar-right">
+                  <div className="skeleton skeleton-zoom" />
+                </div>
+              </div>
+              <div className="doc-viewer-scroll">
+                <div className="doc-page">
+                  <div className="doc-page-header">
+                    <div className="skeleton skeleton-icon" />
+                    <div className="doc-page-header-text">
+                      <div className="skeleton skeleton-title" />
+                      <div className="skeleton skeleton-subtitle" />
+                    </div>
+                  </div>
+                  <div className="doc-page-section">
+                    <div className="skeleton skeleton-section-title" />
+                    <div className="skeleton skeleton-text-line" />
+                    <div className="skeleton skeleton-text-line short" />
+                  </div>
+                  <div className="doc-page-section">
+                    <div className="skeleton skeleton-section-title" />
+                    <div className="skeleton skeleton-table" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <DocumentViewer
+              document={selectedDocument?.record.doc ?? null}
+              documentMeta={documentMeta}
+              documents={docs.documents}
+              selectedIndex={docs.selectedIndex}
+              onSelectDocument={handleSelectDocument}
+              onToggleSidebar={() => setSidebarCollapsed(c => !c)}
+              onToggleChat={() => setChatVisible(v => !v)}
+              onUpload={() => setUploadOpen(true)}
+            />
+          )}
         </section>
-        <aside className={`app-chat${!chatVisible ? ' collapsed' : ''}`}>
+        <aside className={`app-chat${!chatVisible ? ' collapsed' : ''}${chatExpanded ? ' expanded' : ''}`}>
           <ChatPanel
             messages={chat.messages}
             isLoading={chat.isLoading}
@@ -103,6 +137,7 @@ function App() {
             onClose={() => setChatVisible(false)}
             onExpand={() => setChatExpanded(e => !e)}
             onNewChat={handleNewChat}
+            onRetry={chat.retryLastMessage}
             expanded={chatExpanded}
           />
         </aside>

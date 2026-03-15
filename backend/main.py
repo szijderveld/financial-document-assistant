@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -8,6 +9,8 @@ from agent import get_answer
 from schemas import ChatRequest, ChatResponse
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="FinDoc AI API", version="1.0.0")
 
@@ -42,5 +45,21 @@ async def chat(request: ChatRequest):
             model=request.model,
             calculation_memory=updated_memory,
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ConnectionError:
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to reach the AI model service. Please try again later.",
+        )
+    except TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="The AI model took too long to respond. Please try again.",
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unexpected error in /api/chat")
+        raise HTTPException(
+            status_code=500,
+            detail="Something went wrong while processing your question. Please try again.",
+        )

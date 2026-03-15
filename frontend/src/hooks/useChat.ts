@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { ChatMessage, ConversationHistoryEntry, FinancialDocument } from '../lib/types';
 import { sendChatMessage } from '../lib/api';
 
@@ -7,6 +7,7 @@ export function useChat() {
   const [conversationHistory, setConversationHistory] = useState<ConversationHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastFailedRef = useRef<{ question: string; document: FinancialDocument; model: string } | null>(null);
 
   const sendMessage = useCallback(
     async (question: string, document: FinancialDocument, model: string) => {
@@ -18,6 +19,7 @@ export function useChat() {
       setMessages((prev) => [...prev, userMessage]);
       setIsLoading(true);
       setError(null);
+      lastFailedRef.current = null;
 
       try {
         const response = await sendChatMessage({
@@ -41,11 +43,13 @@ export function useChat() {
         const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred';
         const errorMessage: ChatMessage = {
           role: 'assistant',
-          content: `Error: ${errorMsg}`,
+          content: errorMsg,
           timestamp: new Date(),
+          isError: true,
         };
         setMessages((prev) => [...prev, errorMessage]);
         setError(errorMsg);
+        lastFailedRef.current = { question, document, model };
       } finally {
         setIsLoading(false);
       }
@@ -53,11 +57,61 @@ export function useChat() {
     [conversationHistory],
   );
 
+  const retryLastMessage = useCallback(() => {
+    if (!lastFailedRef.current) return;
+    const { question, document, model } = lastFailedRef.current;
+    // Remove the error message before retrying
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.isError) return prev.slice(0, -1);
+      return prev;
+    });
+    lastFailedRef.current = null;
+    // Re-send without adding a new user message (it's already there)
+    setIsLoading(true);
+    setError(null);
+
+    sendChatMessage({
+      document,
+      conversation_history: conversationHistory,
+      question,
+      model,
+    })
+      .then((response) => {
+        const assistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: response.answer,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        setConversationHistory((prev) => [
+          ...prev,
+          { question, answer: response.answer },
+        ]);
+      })
+      .catch((err) => {
+        const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred';
+        const errorMessage: ChatMessage = {
+          role: 'assistant',
+          content: errorMsg,
+          timestamp: new Date(),
+          isError: true,
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        setError(errorMsg);
+        lastFailedRef.current = { question, document, model };
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [conversationHistory]);
+
   const clearChat = useCallback(() => {
     setMessages([]);
     setConversationHistory([]);
     setError(null);
+    lastFailedRef.current = null;
   }, []);
 
-  return { messages, isLoading, error, sendMessage, clearChat };
+  return { messages, isLoading, error, sendMessage, clearChat, retryLastMessage };
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ChatMessage } from '../lib/types';
 import { formatAnswer } from '../lib/formatters';
 
@@ -10,6 +10,7 @@ interface ChatPanelProps {
   onClose: () => void;
   onExpand: () => void;
   onNewChat: () => void;
+  onRetry: () => void;
   expanded: boolean;
 }
 
@@ -21,9 +22,11 @@ function ChatPanel({
   onClose,
   onExpand,
   onNewChat,
+  onRetry,
   expanded,
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -46,6 +49,8 @@ function ChatPanel({
     if (!trimmed || isLoading) return;
     onSendMessage(trimmed);
     setInput('');
+    // Focus input after sending
+    setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -58,7 +63,15 @@ function ChatPanel({
   const handleSuggestionClick = (suggestion: string) => {
     if (isLoading) return;
     onSendMessage(suggestion);
+    setTimeout(() => textareaRef.current?.focus(), 0);
   };
+
+  const handleCopy = useCallback((content: string, index: number) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    });
+  }, []);
 
   const formatTime = (date: Date) => {
     return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -160,11 +173,19 @@ function ChatPanel({
             {messages.map((msg, i) => (
               <div
                 key={i}
-                className={`chat-message chat-message-${msg.role} animate-message-in`}
+                className={`chat-message chat-message-${msg.role}${msg.isError ? ' chat-message-error' : ''} animate-message-in`}
               >
                 <div className="chat-message-avatar">
                   {msg.role === 'user' ? (
                     <span className="chat-avatar chat-avatar-user">SZ</span>
+                  ) : msg.isError ? (
+                    <span className="chat-avatar chat-avatar-error">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="15" y1="9" x2="9" y2="15" />
+                        <line x1="9" y1="9" x2="15" y2="15" />
+                      </svg>
+                    </span>
                   ) : (
                     <span className="chat-avatar chat-avatar-assistant">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -180,24 +201,58 @@ function ChatPanel({
                     </span>
                     <span className="chat-message-time">{formatTime(msg.timestamp)}</span>
                   </div>
-                  <div className={`chat-bubble chat-bubble-${msg.role}`}>
-                    {msg.role === 'assistant' ? (
-                      <>
-                        <span className="chat-answer-highlight">
-                          {formatAnswer(msg.content).formatted}
-                        </span>
-                        <span className="chat-answer-context">
-                          {formatAnswer(msg.content).type === 'percentage'
-                            ? 'Calculated from document data'
-                            : formatAnswer(msg.content).type === 'number'
-                              ? 'Extracted from table'
-                              : 'Based on document analysis'}
-                        </span>
-                      </>
-                    ) : (
-                      msg.content
-                    )}
-                  </div>
+                  {msg.isError ? (
+                    <div className="chat-bubble chat-bubble-error">
+                      <div className="chat-error-content">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span>{msg.content}</span>
+                      </div>
+                      <button className="chat-retry-btn" onClick={onRetry} disabled={isLoading}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="23 4 23 10 17 10" />
+                          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                        Retry
+                      </button>
+                    </div>
+                  ) : msg.role === 'assistant' ? (
+                    <div className="chat-bubble chat-bubble-assistant chat-bubble-with-actions">
+                      <span className="chat-answer-highlight">
+                        {formatAnswer(msg.content).formatted}
+                      </span>
+                      <span className="chat-answer-context">
+                        {formatAnswer(msg.content).type === 'percentage'
+                          ? 'Calculated from document data'
+                          : formatAnswer(msg.content).type === 'number'
+                            ? 'Extracted from table'
+                            : 'Based on document analysis'}
+                      </span>
+                      <button
+                        className={`chat-copy-btn${copiedIndex === i ? ' copied' : ''}`}
+                        onClick={() => handleCopy(msg.content, i)}
+                        title="Copy answer"
+                      >
+                        {copiedIndex === i ? (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        ) : (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`chat-bubble chat-bubble-${msg.role}`}>
+                      {msg.content}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
