@@ -11,18 +11,17 @@ from collections.abc import Callable
 
 from pydantic import BaseModel, Field
 
-# Financial suffix multipliers (case-insensitive)
-_SUFFIXES: dict[str, float] = {
-    "T": 1e12, "B": 1e9, "M": 1e6, "K": 1e3,
-    "t": 1e12, "b": 1e9, "m": 1e6, "k": 1e3,
-}
+# Financial unit suffixes that the LLM may copy from document text.
+# These are stripped (not multiplied) because table values are already in the
+# unit stated by the table header (e.g. "in billions"), so 88.7B means 88.7.
+_UNIT_SUFFIXES = set("BMKTbmkt")
 
 
 def _parse_numeric(val: str) -> float:
-    """Parse a numeric string, handling optional financial suffixes (B/M/K/T) and percent signs."""
+    """Parse a numeric string, stripping stray financial suffixes (B/M/K/T) and percent signs."""
     val = val.strip().rstrip("%")
-    if val and val[-1] in _SUFFIXES:
-        return float(val[:-1]) * _SUFFIXES[val[-1]]
+    if val and val[-1] in _UNIT_SUFFIXES:
+        val = val[:-1]
     return float(val)
 
 
@@ -190,19 +189,20 @@ if __name__ == "__main__":
     print(f"Comparison: {r.final_value}")
 
     # Financial suffix: const_88.7B (the bug that triggered this fix)
+    # Suffix is stripped, NOT multiplied — table values are already in correct units
     r = executor.execute(["const_88.7B"])
-    assert r.final_value == 88.7e9, f"Expected 88.7B, got {r.final_value}"
-    print(f"Suffix B: {r.final_value}")
+    assert r.final_value == 88.7, f"Expected 88.7, got {r.final_value}"
+    print(f"Suffix B stripped: {r.final_value}")
 
     # Financial suffix: const_2.5M
     r = executor.execute(["const_2.5M"])
-    assert r.final_value == 2.5e6, f"Expected 2.5M, got {r.final_value}"
-    print(f"Suffix M: {r.final_value}")
+    assert r.final_value == 2.5, f"Expected 2.5, got {r.final_value}"
+    print(f"Suffix M stripped: {r.final_value}")
 
     # Negative with suffix: const_m3.2K
     r = executor.execute(["const_m3.2K"])
-    assert r.final_value == -3200.0, f"Expected -3200, got {r.final_value}"
-    print(f"Negative suffix: {r.final_value}")
+    assert r.final_value == -3.2, f"Expected -3.2, got {r.final_value}"
+    print(f"Negative suffix stripped: {r.final_value}")
 
     # Dollar sign in literal
     r = executor.execute(["$1,234.56"])
