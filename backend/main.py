@@ -4,10 +4,12 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import ValidationError
 
 import document_store
 from agent import get_answer
@@ -164,6 +166,18 @@ async def chat(request: ChatRequest):
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except ValidationError as e:
+        logger.warning("LLM returned invalid response structure: %s", e)
+        raise HTTPException(
+            status_code=502,
+            detail="The AI model returned an unexpected response. Please try again.",
+        )
+    except httpx.HTTPStatusError as e:
+        logger.warning("Cloudflare API error: %s %s", e.response.status_code, e.response.text[:200])
+        raise HTTPException(
+            status_code=502,
+            detail="The AI model service returned an error. Please try again later.",
+        )
     except ConnectionError:
         raise HTTPException(
             status_code=502,

@@ -32,11 +32,12 @@ class ProgramResponse(BaseModel):
         description="Number of decimal places for formatting"
     )
     reply: str = Field(
+        default="",
         description=(
             "A natural language answer (1-2 sentences) that states the answer with brief rationale. "
             "Use the PLACEHOLDER {answer} where the computed value should appear. "
             "Example: 'The total revenue was {answer}, as reported in the 2023 income statement.'"
-        )
+        ),
     )
 
 
@@ -107,7 +108,7 @@ For direct lookups:
 
 <reply_guidelines>
 Generate a "reply" field: a 1-2 sentence natural language answer that includes both the answer and the rationale.
-- Use {answer} as a placeholder where the computed numeric value will be inserted
+- Use {{answer}} as a placeholder where the computed numeric value will be inserted
 - Reference where the data came from (which row/column in the table, which year, etc.)
 - For calculations, briefly explain what was computed
 - Keep it concise and professional
@@ -119,7 +120,7 @@ You MUST respond with a valid JSON object containing these exact fields:
 - "program": list of strings with DSL steps
 - "format_type": one of "percentage", "ratio", "integer", "decimal", "yes_no"
 - "format_precision": string number of decimal places
-- "reply": string with a natural language answer using {answer} as placeholder for the computed value
+- "reply": string with a natural language answer using {{answer}} as placeholder for the computed value
 
 Generate a DSL program and specify the appropriate format_type and format_precision for the final answer."""
 
